@@ -17,6 +17,7 @@ find_package(catkin REQUIRED
 )
 
 include_directories(include
+  ${PROJECT_SOURCE_DIR}/../include
   ${catkin_INCLUDE_DIRS}
   ${TULIBS_INCLUDE_DIR}
 )
