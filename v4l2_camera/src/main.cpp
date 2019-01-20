@@ -14,8 +14,6 @@ namespace TU
 template <> void
 CameraArrayNode<V4L2CameraArray>::add_parameters()
 {
-    std::cerr << "CameraArrayNode::get_config() called." << std::endl;
-    
     const auto&	camera = _cameras[0];
     BOOST_FOREACH (auto feature, camera.availableFeatures())
     {
@@ -36,10 +34,27 @@ CameraArrayNode<V4L2CameraArray>::add_parameters()
 	}
 	else				// menu button
 	{
+	    std::stringstream	s;
+	    bool		init = true;
+	    
+	    s << "{\'enum\': [";
+	    
 	    BOOST_FOREACH (const auto& menuItem, menuItems)
 	    {
+		if (!init)
+		    s << ", ";
 
+		s << "{\'value\': "  << menuItem.index << ", "
+		  <<  "\'name\': \'" << menuItem.name  << "\'}";
+
+		init = false;
 	    }
+	    s << "]}";
+
+	    _reconf_server.addParam(feature, name, name, s.str(),
+				    0, int(std::distance(menuItems.first,
+							 menuItems.second)),
+				    camera.getValue(feature));
 	}
     }
 }
