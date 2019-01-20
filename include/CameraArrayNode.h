@@ -9,8 +9,10 @@
 #include <ros/ros.h>
 #include <image_transport/image_transport.h>
 #include <sensor_msgs/image_encodings.h>
-
+//#include <dynamic_reconfigure/server.h>
+#include "server.h"
 #include "TU/Camera++.h"
+#include "ReconfServer.h"
 
 namespace TU
 {
@@ -33,6 +35,10 @@ class CameraArrayNode
     void	run()							;
 
   private:
+    void	tick()							;
+    void	add_parameters()					;
+    void	reconf_callback(const ReconfServer::Params& params,
+				uint32_t level)				;
     void	publish_image(const camera_t& camera,
 			      image_t& image,
 			      const image_transport::Publisher& pub)
@@ -40,7 +46,6 @@ class CameraArrayNode
     void	publish_cinfo(const image_t&  image,
 			      const cmodel_t& cmodel,
 			      const ros::Publisher& pub)	const	;
-    void	tick()							;
 
   private:
     ros::NodeHandle				_nh;
@@ -50,6 +55,8 @@ class CameraArrayNode
     std::vector<ros::Publisher>			_cinfo_pubs;
     int						_max_skew;
     std::vector<cmodel_t>			_cmodels;
+
+    ReconfServer				_reconf_server;
 };
 
 template <class CAMERAS>
@@ -57,6 +64,7 @@ CameraArrayNode<CAMERAS>::CameraArrayNode()
     :_nh("~"),
      _it(_nh),
      _max_skew(0)
+   // _reconf_server(_nh)
 {
   // Restore camera configurations and create cameras.
     std::string	camera_name;
@@ -92,6 +100,10 @@ CameraArrayNode<CAMERAS>::CameraArrayNode()
 	cmodel.setProjection(P);
 	cmodel.setDistortion(d1, d2);
     }
+
+  // Setup dynamic reconfigure
+    add_parameters();
+    _reconf_server.setCallback(boost::bind(&reconf_callback, this, _1, _2));
 
   // Start cameras.
     for (auto& camera : _cameras)
@@ -151,9 +163,10 @@ CameraArrayNode<CAMERAS>::publish_cinfo(const image_t&  image,
     cinfo.width			= image.width;
     cinfo.distortion_model	= "plumb_bob";
 
-    cinfo.D.resize(2);
+    cinfo.D.resize(4);
     cinfo.D[0] = cmodel.d1();
     cinfo.D[1] = cmodel.d2();
+    cinfo.D[2] = cinfo.D[3] = 0;
 
     const auto	K = cmodel.K();
     std::copy(K.data(), K.data() + 9, cinfo.K.data());

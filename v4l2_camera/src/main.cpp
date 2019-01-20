@@ -1,6 +1,8 @@
 /*!
  *  \file	main.cpp
+ *
  */
+#include <boost/foreach.hpp>
 #include "CameraArrayNode.h"
 #include "TU/V4L2CameraArray.h"
 
@@ -9,6 +11,46 @@ namespace TU
 /************************************************************************
 *   class CameraArrayNode<V4L2CameraArray>				*
 ************************************************************************/
+template <> void
+CameraArrayNode<V4L2CameraArray>::add_parameters()
+{
+    std::cerr << "CameraArrayNode::get_config() called." << std::endl;
+    
+    const auto&	camera = _cameras[0];
+    BOOST_FOREACH (auto feature, camera.availableFeatures())
+    {
+	const auto	name	  = camera.getName(feature);
+	const auto	menuItems = camera.availableMenuItems(feature);
+
+	if (menuItems.first == menuItems.second)
+	{
+	    int	min, max, step;
+	    camera.getMinMaxStep(feature, min, max, step);
+
+	    if (min == 0 && max == 1)	// toglle button
+		_reconf_server.addParam(feature, name, name, "", false, true,
+					bool(camera.getValue(feature)));
+	    else			// slider
+		_reconf_server.addParam(feature, name, name, "", min, max,
+					camera.getValue(feature));
+	}
+	else				// menu button
+	{
+	    BOOST_FOREACH (const auto& menuItem, menuItems)
+	    {
+
+	    }
+	}
+    }
+}
+
+template <> void
+CameraArrayNode<V4L2CameraArray>::reconf_callback(
+    const ReconfServer::Params& params, uint32_t level)
+{
+    std::cerr << "reconf_callback() called. level=" << level << std::endl;
+}
+    
 template <> void
 CameraArrayNode<V4L2CameraArray>::publish_image(
     const camera_t& camera, image_t& image,
