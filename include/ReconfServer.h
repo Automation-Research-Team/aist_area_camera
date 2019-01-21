@@ -54,7 +54,7 @@ class ReconfServer
 			    const std::string&	description_,
 			    const std::string&	edit_method_)
 			    :id(id_)
-	    {
+			{
 			    name	= name_;
 			    type	= type_;
 			    level	= level_;

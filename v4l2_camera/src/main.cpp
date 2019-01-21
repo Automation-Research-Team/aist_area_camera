@@ -1,6 +1,5 @@
 /*!
  *  \file	main.cpp
- *
  */
 #include <boost/foreach.hpp>
 #include "CameraArrayNode.h"
@@ -15,6 +14,31 @@ template <> void
 CameraArrayNode<V4L2CameraArray>::add_parameters()
 {
     const auto&	camera = _cameras[0];
+
+  // Add pixel format commands.
+    const auto		pixelFormats = camera.availablePixelFormats();
+    std::ostringstream	edit_method;
+    bool		init = true;
+    
+    edit_method << "{\'enum\': [";
+    BOOST_FOREACH (auto pixelFormat, pixelFormats)
+    {
+	if (init)
+	    init = false;
+	else
+	    edit_method << ", ";
+
+	edit_method << "{\'value\': "  << pixelFormat << ", "
+		    <<  "\'name\': \'" << camera.getName(pixelFormat) << "\'}";
+    }
+    edit_method << "]}";
+    _reconf_server.addParam(0, "pixel_format", "pixe format",
+			    edit_method.str(),
+			    std::numeric_limits<int>::min(),
+			    std::numeric_limits<int>::max(),
+			    int(camera.pixelFormat()));
+
+  // Add feature commands.
     BOOST_FOREACH (auto feature, camera.availableFeatures())
     {
 	const auto	name	  = camera.getName(feature);
@@ -34,26 +58,26 @@ CameraArrayNode<V4L2CameraArray>::add_parameters()
 	}
 	else				// menu button
 	{
-	    std::stringstream	s;
+	    std::ostringstream	edit_method;
 	    bool		init = true;
 	    
-	    s << "{\'enum\': [";
-	    
+	    edit_method << "{\'enum\': [";
 	    BOOST_FOREACH (const auto& menuItem, menuItems)
 	    {
-		if (!init)
-		    s << ", ";
+		if (init)
+		    init = false;
+		else
+		    edit_method << ", ";
 
-		s << "{\'value\': "  << menuItem.index << ", "
-		  <<  "\'name\': \'" << menuItem.name  << "\'}";
-
-		init = false;
+		edit_method << "{\'value\': "  << menuItem.index << ", "
+			    <<  "\'name\': \'" << menuItem.name  << "\'}";
 	    }
-	    s << "]}";
+	    edit_method << "]}";
 
-	    _reconf_server.addParam(feature, name, name, s.str(),
-				    0, int(std::distance(menuItems.first,
-							 menuItems.second)),
+	    _reconf_server.addParam(feature, name, name, edit_method.str(),
+				    0,
+				    int(std::distance(menuItems.first,
+						      menuItems.second)) - 1,
 				    camera.getValue(feature));
 	}
     }

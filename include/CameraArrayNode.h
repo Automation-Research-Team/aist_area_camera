@@ -76,7 +76,7 @@ CameraArrayNode<CAMERAS>::CameraArrayNode()
   // Create publishers.
     for (size_t i = 0; i < _cameras.size(); ++i)
     {
-	const auto	device_name = "device" + std::to_string(i);
+	const auto	device_name = "camera" + std::to_string(i);
 
 	_pubs.emplace_back(_it.advertise((device_name + "/image").c_str(), 1));
 	_cinfo_pubs.emplace_back(
@@ -100,6 +100,18 @@ CameraArrayNode<CAMERAS>::CameraArrayNode()
     }
 
   // Setup dynamic reconfigure
+    std::ostringstream	edit_method;
+    edit_method << "{\'enum\': [";
+    for (size_t i = 0; i < _cameras.size(); ++i)
+    {
+	edit_method << "{\'value\': "  << i << ", "
+		    <<  "\'name\': \'camera" << i << "\'}, ";
+    }
+    edit_method << "{\'value\': "  << _cameras.size() << ", "
+		<<  "\'name\': \'all\'}]}";
+    _reconf_server.addParam(0, "select_camera", "select_camera",
+			    edit_method.str(),
+			    0, int(_cameras.size()), int(_cameras.size()));
     add_parameters();
     _reconf_server.setCallback(boost::bind(&reconf_callback, this, _1, _2));
 
