@@ -208,14 +208,17 @@ operator <<(std::ostream& out, const ReconfServer::AbstractParam& param)
     out << std::boolalpha
 	<< '[' << param.name << "]: level=0x"
 	<< std::hex << param.level << std::dec << ",val=";
-    if (param.type == type_name<bool>())
-	out << boost::any_cast<bool>(param.value());
-    else if (param.type == type_name<int>())
-	out << boost::any_cast<int>(param.value());
-    else if (param.type == type_name<double>())
-	out << boost::any_cast<double>(param.value());
-    else if (param.type == type_name<std::string>())
-	out << boost::any_cast<std::string>(param.value());
+
+    const auto	val = param.value();
+    
+    if (val.type() == typeid(bool))
+	out << boost::any_cast<bool>(val);
+    else if (val.type() == typeid(int))
+	out << boost::any_cast<int>(val);
+    else if (val.type() == typeid(double))
+	out << boost::any_cast<double>(val);
+    else if (val.type() == typeid(std::string))
+	out << boost::any_cast<std::string>(val);
     else
 	out << "UNKNOWN";
     return out;
