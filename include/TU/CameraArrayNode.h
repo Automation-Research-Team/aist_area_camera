@@ -10,7 +10,7 @@
 #include <image_transport/image_transport.h>
 #include <sensor_msgs/image_encodings.h>
 #include "TU/Camera++.h"
-#include "ReconfServer.h"
+#include "TU/ReconfServer.h"
 
 namespace TU
 {
@@ -61,8 +61,8 @@ template <class CAMERAS>
 CameraArrayNode<CAMERAS>::CameraArrayNode()
     :_nh("~"),
      _it(_nh),
-     _max_skew(0)
-   // _reconf_server(_nh)
+     _max_skew(0),
+     _reconf_server(_nh)
 {
   // Restore camera configurations and create cameras.
     std::string	camera_name;
@@ -100,18 +100,21 @@ CameraArrayNode<CAMERAS>::CameraArrayNode()
     }
 
   // Setup dynamic reconfigure
-    std::ostringstream	edit_method;
-    edit_method << "{\'enum\': [";
-    for (size_t i = 0; i < _cameras.size(); ++i)
+    if (_cameras.size() > 1)
     {
-	edit_method << "{\'value\': "  << i << ", "
-		    <<  "\'name\': \'camera" << i << "\'}, ";
+	std::ostringstream	edit_method;
+	edit_method << "{\'enum\': [";
+	for (size_t i = 0; i < _cameras.size(); ++i)
+	{
+	    edit_method << "{\'value\': "  << i << ", "
+			<<  "\'name\': \'camera" << i << "\'}, ";
+	}
+	edit_method << "{\'value\': "  << _cameras.size() << ", "
+		    <<  "\'name\': \'all\'}]}";
+	_reconf_server.addParam(0, "select_camera", "select_camera",
+				edit_method.str(),
+				0, int(_cameras.size()), int(_cameras.size()));
     }
-    edit_method << "{\'value\': "  << _cameras.size() << ", "
-		<<  "\'name\': \'all\'}]}";
-    _reconf_server.addParam(0, "select_camera", "select_camera",
-			    edit_method.str(),
-			    0, int(_cameras.size()), int(_cameras.size()));
     add_parameters();
     _reconf_server.setCallback(boost::bind(&reconf_callback, this, _1, _2));
 

@@ -39,6 +39,7 @@ add_compile_options(-pthread)
 add_executable(
   ${PROJECT_NAME}
   src/main.cpp
+  ${PROJECT_SOURCE_DIR}/../src/ReconfServer.cpp
 )
 
 add_dependencies(

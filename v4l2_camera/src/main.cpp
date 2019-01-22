@@ -2,7 +2,7 @@
  *  \file	main.cpp
  */
 #include <boost/foreach.hpp>
-#include "CameraArrayNode.h"
+#include "TU/CameraArrayNode.h"
 #include "TU/V4L2CameraArray.h"
 
 namespace TU
@@ -43,6 +43,8 @@ CameraArrayNode<V4L2CameraArray>::add_parameters()
     {
 	const auto	name	  = camera.getName(feature);
 	const auto	menuItems = camera.availableMenuItems(feature);
+
+	ROS_INFO_STREAM("Feature(" << name << ") added.");
 
 	if (menuItems.first == menuItems.second)
 	{
@@ -88,6 +90,17 @@ CameraArrayNode<V4L2CameraArray>::reconf_callback(
     const ReconfServer::Params& params, uint32_t level)
 {
     std::cerr << "reconf_callback() called. level=" << level << std::endl;
+
+    for (const auto& param : params)
+    {
+	std::cerr << *param << std::endl;
+	if (param->type == type_name<bool>())
+	    TU::setFeature(_cameras, param->id,
+			   boost::any_cast<bool>(param->value()));
+	else if (param->type == type_name<int>())
+	    TU::setFeature(_cameras, param->id,
+			   boost::any_cast<int>(param->value()));
+    }
 }
     
 template <> void
