@@ -213,12 +213,12 @@ class ReconfServer
 				    << type << ",id=" << id);
 		}
 	
-	bool	fromMessage(const dynamic_reconfigure::Config& msg)
+	bool	fromMessage(const Config& msg)
 		{
 		    return ConfigTools::getGroupState(msg, name, *this);
 		}
 
-	void	toMessage(dynamic_reconfigure::Config& msg) const
+	void	toMessage(Config& msg) const
 		{
 		    ConfigTools::appendGroup(msg, name, id, parent, *this);
 		}
