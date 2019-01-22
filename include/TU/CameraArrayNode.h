@@ -35,8 +35,8 @@ class CameraArrayNode
   private:
     void	tick()							;
     void	add_parameters()					;
-    void	reconf_callback(const ReconfServer::Params& params,
-				uint32_t level)				;
+    void	reconf_callback(const ReconfServer::Params& new_params,
+				const ReconfServer::Params& old_params)	;
     void	publish_image(const camera_t& camera,
 			      image_t& image,
 			      const image_transport::Publisher& pub)

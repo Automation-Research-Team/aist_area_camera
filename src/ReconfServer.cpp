@@ -34,10 +34,6 @@ ReconfServer::setCallback(const CallbackType& callback)
     _parameter_descriptions_pub.publish(description_message);
 
     _callback = callback;
-
-  // At startup we need to load the configuration with all
-  // level bits set. (Everything has changed.)
-    callCallback(~0);
 }
 
 void
@@ -46,49 +42,6 @@ ReconfServer::clearCallback()
     boost::recursive_mutex::scoped_lock lock(_mutex);
 
     _callback.clear();
-}
-
-void
-ReconfServer::callCallback(int level)
-{
-    if (!_callback)
-    {
-	ROS_DEBUG_STREAM("ReconfServer::callCallback(): callback is not set.");
-	return;
-    }
-		    
-    try
-    {
-	_callback(_params, level);
-
-	toServer();
-			
-	Config	msg;
-	toMessage(msg);				// msg <== _params
-	_parameter_update_pub.publish(msg);
-    }
-    catch (const std::exception& e)
-    {
-	ROS_WARN_STREAM("ReconfServer::callCallback(): " << e.what());
-    }
-    catch (...)
-    {
-	ROS_WARN_STREAM("ReconfServer::callCallback(): unknown exception.");
-    }
-}
-
-uint32_t
-ReconfServer::calcLevel(const Params& params) const
-{
-    uint32_t	level = 0;
-    auto	p = params.begin();
-    for (const auto& param : _params)
-    {
-	level = param->calcLevel(level, (*p)->value());
-	++p;
-    }
-
-    return level;
 }
 
 void
@@ -215,11 +168,35 @@ ReconfServer::reconfCallback(dynamic_reconfigure::Reconfigure::Request&  req,
 {
     boost::recursive_mutex::scoped_lock lock(_mutex);
 
-    ROS_DEBUG_STREAM("ReconfServer::reconfCallback() called.");
-
     const auto	params = _params;	// Keep copy of original params.
     fromMessage(req.config);		// req.config ==> _params
-    callCallback(calcLevel(params));
+
+    if (!_callback)
+    {
+	ROS_DEBUG_STREAM("ReconfServer::reconfCallback(): "
+			 << "callback is not set.");
+	return;
+    }
+		    
+    try
+    {
+	_callback(_params, params);
+
+	toServer();
+			
+	Config	msg;
+	toMessage(msg);				// msg <== _params
+	_parameter_update_pub.publish(msg);
+    }
+    catch (const std::exception& err)
+    {
+	ROS_WARN_STREAM("ReconfServer::reconfCallback(): " << err.what());
+    }
+    catch (...)
+    {
+	ROS_WARN_STREAM("ReconfServer::reconfCallback(): unknown exception.");
+    }
+
     toMessage(rsp.config);		// rsp.config <== _params
 		    
     return true;
@@ -229,8 +206,8 @@ std::ostream&
 operator <<(std::ostream& out, const ReconfServer::AbstractParam& param)
 {
     out << std::boolalpha
-	<< '[' << param.name << "]: id="
-	<< std::hex << param.id << std::dec << ",val=";
+	<< '[' << param.name << "]: level=0x"
+	<< std::hex << param.level << std::dec << ",val=";
     if (param.type == type_name<bool>())
 	out << boost::any_cast<bool>(param.value());
     else if (param.type == type_name<int>())

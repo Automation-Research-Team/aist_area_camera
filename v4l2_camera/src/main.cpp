@@ -44,8 +44,6 @@ CameraArrayNode<V4L2CameraArray>::add_parameters()
 	const auto	name	  = camera.getName(feature);
 	const auto	menuItems = camera.availableMenuItems(feature);
 
-	ROS_INFO_STREAM("Feature(" << name << ") added.");
-
 	if (menuItems.first == menuItems.second)
 	{
 	    int	min, max, step;
@@ -77,9 +75,8 @@ CameraArrayNode<V4L2CameraArray>::add_parameters()
 	    edit_method << "]}";
 
 	    _reconf_server.addParam(feature, name, name, edit_method.str(),
-				    0,
-				    int(std::distance(menuItems.first,
-						      menuItems.second)) - 1,
+				    menuItems.first->index,
+				    (menuItems.second - 1)->index,
 				    camera.getValue(feature));
 	}
     }
@@ -87,19 +84,24 @@ CameraArrayNode<V4L2CameraArray>::add_parameters()
 
 template <> void
 CameraArrayNode<V4L2CameraArray>::reconf_callback(
-    const ReconfServer::Params& params, uint32_t level)
+    const ReconfServer::Params& new_params,
+    const ReconfServer::Params& old_params)
 {
-    std::cerr << "reconf_callback() called. level=" << level << std::endl;
-
-    for (const auto& param : params)
+    auto	old_param = old_params.begin();
+    for (const auto& new_param : new_params)
     {
-	std::cerr << *param << std::endl;
-	if (param->type == type_name<bool>())
-	    TU::setFeature(_cameras, param->id,
-			   boost::any_cast<bool>(param->value()));
-	else if (param->type == type_name<int>())
-	    TU::setFeature(_cameras, param->id,
-			   boost::any_cast<int>(param->value()));
+	if (*new_param != **old_param)
+	{
+	    ROS_DEBUG_STREAM(*new_param);
+	    if (new_param->type == type_name<bool>())
+		TU::setFeature(_cameras, new_param->level,
+			       boost::any_cast<bool>(new_param->value()));
+	    else if (new_param->type == type_name<int>())
+		TU::setFeature(_cameras, new_param->level,
+			       boost::any_cast<int>(new_param->value()));
+	}
+
+	++old_param;
     }
 }
     

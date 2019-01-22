@@ -43,13 +43,11 @@ class ReconfServer
     class AbstractParam : public dynamic_reconfigure::ParamDescription
     {
       public:
-			AbstractParam(uint32_t		 id_,
-				      const std::string& name_,
+			AbstractParam(const std::string& name_,
 				      const std::string& type_,
 				      uint32_t		 level_,
 				      const std::string& description_,
 				      const std::string& edit_method_)
-			    :id(id_)
 			{
 			    name	= name_;
 			    type	= type_;
@@ -61,37 +59,37 @@ class ReconfServer
 	virtual AbstractParam*
 			clone()					const	= 0;
 	virtual Any	value()					const	= 0;
-	virtual uint32_t
-			calcLevel(uint32_t lvl, const Any& val)	const	= 0;
+	virtual bool	operator ==(const AbstractParam& param)	const	= 0;
+	bool		operator !=(const AbstractParam& param)	const
+			{
+			    return !operator ==(param);
+			}
 	virtual void	fromServer(const ros::NodeHandle& nh)		= 0;
 	virtual void	toServer(const ros::NodeHandle& nh)	const	= 0;
 	virtual bool	fromMessage(const Config& msg)			= 0;
 	virtual void	toMessage(Config& msg)			const	= 0;
 	virtual void	toMessage(ConfigDescription& desc_msg)	const	= 0;
-
-      public:
-	const uint32_t	id;
     };
     
     template <class T>
     class Param final : public AbstractParam
     {
       public:
-			Param(uint32_t		 id_,
-			      const std::string& name_,
+			Param(const std::string& name_,
 			      const std::string& type_,
 			      uint32_t		 level_,
 			      const std::string& description_,
 			      const std::string& edit_method_,
 			      const T& min,  const T& max,
 			      const T& dflt, const T& val)
-			    :AbstractParam(id_, name_, type_, level_,
+			    :AbstractParam(name_, type_, level_,
 					   description_, edit_method_),
 			    _min(min), _max(max), _dflt(dflt), _val(val)
 			{
 			    ROS_INFO_STREAM("Param[" << name <<
 					    "]: type=" << type
-					    << ",level=" << level);
+					    << std::hex << ",level=0x" << level
+					    << std::dec);
 			}
 
 	virtual AbstractParam*
@@ -105,11 +103,10 @@ class ReconfServer
 			    return _val;
 			}
 
-	virtual uint32_t
-			calcLevel(uint32_t lvl, const Any& val) const
+	virtual bool	operator ==(const AbstractParam& param) const
 			{
-			    return (_val == boost::any_cast<const T&>(val) ?
-				    lvl : lvl | level);
+			    return _val == boost::any_cast<const T&>(
+						param.value());
 			}
 
 	virtual void	fromServer(const ros::NodeHandle& nh)
@@ -186,7 +183,8 @@ class ReconfServer
 	Params&	operator =(Params&& params)			= default;
     };
     
-    using CallbackType	= boost::function<void(const Params&, uint32_t level)>;
+    using CallbackType	= boost::function<void(const Params& new_params,
+					       const Params& old_params)>;
 
   private:
     class Group final : public dynamic_reconfigure::Group
@@ -233,7 +231,7 @@ class ReconfServer
 		ReconfServer(const ros::NodeHandle& nh)			;
 
     template <class T>
-    void	addParam(uint32_t id,
+    void	addParam(uint32_t level,
 			 const std::string& name,
 			 const std::string& description,
 			 const std::string& edit_method,
@@ -247,9 +245,9 @@ class ReconfServer
 					  c = '_';
 				  });
 
-		    _params.emplace_back(new Param<T>(id, canonical_name,
+		    _params.emplace_back(new Param<T>(canonical_name,
 						      type_name<T>(),
-						      1 << _params.size(),
+						      level,
 						      description, edit_method,
 						      min, max, dflt, dflt));
 		}
@@ -258,7 +256,6 @@ class ReconfServer
     void	clearCallback()						;
 
   private:
-    void	callCallback(int level)					;
     uint32_t	calcLevel(const Params& params)			const	;
     void	fromServer()					const	;
     void	toServer()					const	;
