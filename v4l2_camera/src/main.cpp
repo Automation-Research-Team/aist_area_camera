@@ -92,9 +92,9 @@ CameraArrayNode<V4L2CameraArray>::reconf_callback(
     {
 	if (*new_param != **old_param)
 	{
-	    const auto	val = new_param->value();
-	    
 	    ROS_DEBUG_STREAM(*new_param);
+
+	    const auto	val = new_param->value();
 	    if (val.type() == typeid(bool))
 		TU::setFeature(_cameras, new_param->level,
 			       boost::any_cast<bool>(val));

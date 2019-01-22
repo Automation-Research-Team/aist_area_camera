@@ -89,7 +89,7 @@ class ReconfServer
 			    ROS_INFO_STREAM("Param[" << name <<
 					    "]: type=" << type
 					    << std::hex << ",level=0x" << level
-					    << std::dec);
+					    << std::dec << ",val="<< _val);
 			}
 
 	virtual AbstractParam*
