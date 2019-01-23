@@ -22,7 +22,7 @@ ReconfServer::ReconfServer(const ros::NodeHandle& nh)
 void
 ReconfServer::setCallback(const CallbackType& callback)
 {
-    boost::recursive_mutex::scoped_lock lock(_mutex);
+    std::lock_guard<std::mutex>	lock(_mutex);
 
     _groups.emplace_back("Default", "", 0, 0, true, _params);
 		    
@@ -39,7 +39,7 @@ ReconfServer::setCallback(const CallbackType& callback)
 void
 ReconfServer::clearCallback()
 {
-    boost::recursive_mutex::scoped_lock lock(_mutex);
+    std::lock_guard<std::mutex>	lock(_mutex);
 
     _callback.clear();
 }
@@ -166,7 +166,7 @@ bool
 ReconfServer::reconfCallback(dynamic_reconfigure::Reconfigure::Request&  req,
 			     dynamic_reconfigure::Reconfigure::Response& rsp)
 {
-    boost::recursive_mutex::scoped_lock lock(_mutex);
+    std::lock_guard<std::mutex>	lock(_mutex);
 
     const auto	params = _params;	// Keep copy of original params.
     fromMessage(req.config);		// req.config ==> _params

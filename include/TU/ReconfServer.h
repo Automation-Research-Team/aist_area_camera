@@ -9,8 +9,8 @@
 #include <dynamic_reconfigure/Reconfigure.h>
 #include <dynamic_reconfigure/config_tools.h>
 #include <boost/function.hpp>
-#include <boost/thread/recursive_mutex.hpp>
 #include <boost/any.hpp>
+#include <mutex>
 #include <cctype>
 
 namespace TU
@@ -59,6 +59,7 @@ class ReconfServer
 	virtual AbstractParam*
 			clone()					const	= 0;
 	virtual Any	value()					const	= 0;
+	virtual void	setValue(const Any& val)			= 0;
 	virtual bool	operator ==(const AbstractParam& param)	const	= 0;
 	bool		operator !=(const AbstractParam& param)	const
 			{
@@ -101,6 +102,11 @@ class ReconfServer
 	virtual Any	value()	const
 			{
 			    return _val;
+			}
+
+	virtual void	setValue(const Any& val)
+			{
+			    _val = boost::any_cast<T>(val);
 			}
 
 	virtual bool	operator ==(const AbstractParam& param) const
@@ -160,7 +166,7 @@ class ReconfServer
 	T		_val;
     };
 
-    class Params : public std::vector<std::unique_ptr<const AbstractParam> >
+    class Params : public std::vector<std::unique_ptr<AbstractParam> >
     {
       public:
 		Params()					= default;
@@ -277,7 +283,7 @@ class ReconfServer
 
     CallbackType		_callback;
 
-    boost::recursive_mutex	_mutex;
+    mutable std::mutex		_mutex;
 };
 
 template <> inline void

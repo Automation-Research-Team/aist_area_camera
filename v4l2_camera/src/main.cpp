@@ -32,7 +32,7 @@ CameraArrayNode<V4L2CameraArray>::add_parameters()
 		    <<  "\'name\': \'" << camera.getName(pixelFormat) << "\'}";
     }
     edit_method << "]}";
-    _reconf_server.addParam(0, "pixel_format", "pixe format",
+    _reconf_server.addParam(PIXEL_FORMAT, "pixel_format", "pixe format",
 			    edit_method.str(),
 			    std::numeric_limits<int>::min(),
 			    std::numeric_limits<int>::max(),
@@ -83,28 +83,28 @@ CameraArrayNode<V4L2CameraArray>::add_parameters()
 }
 
 template <> void
-CameraArrayNode<V4L2CameraArray>::reconf_callback(
-    const ReconfServer::Params& new_params,
-    const ReconfServer::Params& old_params)
+CameraArrayNode<V4L2CameraArray>::set_format(
+    camera_t& camera, const ReconfServer::AbstractParam& param) const
 {
-    auto	old_param = old_params.begin();
-    for (const auto& new_param : new_params)
-    {
-	if (*new_param != **old_param)
-	{
-	    ROS_DEBUG_STREAM(*new_param);
-
-	    const auto	val = new_param->value();
-	    if (val.type() == typeid(bool))
-		TU::setFeature(_cameras, new_param->level,
-			       boost::any_cast<bool>(val));
-	    else if (val.type() == typeid(int))
-		TU::setFeature(_cameras, new_param->level,
-			       boost::any_cast<int>(val));
-	}
-
-	++old_param;
-    }
+    TU::setFormat(camera, param.level, 0);
+}
+    
+template <> void
+CameraArrayNode<V4L2CameraArray>::set_feature(
+    camera_t& camera, const ReconfServer::AbstractParam& param) const
+{
+    const auto	val = param.value();
+    if (val.type() == typeid(bool))
+	TU::setFeature(camera, param.level, boost::any_cast<bool>(val));
+    else if (val.type() == typeid(int))
+	TU::setFeature(camera, param.level, boost::any_cast<int>(val));
+}
+    
+template <> void
+CameraArrayNode<V4L2CameraArray>::get_feature(
+    const camera_t& camera, ReconfServer::AbstractParam& param) const
+{
+    param.setValue(camera.getValue(V4L2Camera::uintToFeature(param.level)));
 }
     
 template <> void

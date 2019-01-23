@@ -27,6 +27,9 @@ class CameraArrayNode
     using cmodel_t = Camera<IntrinsicWithDistortion<
 				IntrinsicBase<double> > >;
 
+    constexpr static int	SELECT_CAMERA	= 0;
+    constexpr static int	PIXEL_FORMAT	= 1;
+    
   public:
 		CameraArrayNode()					;
 
@@ -44,10 +47,19 @@ class CameraArrayNode
     void	publish_cinfo(const image_t&  image,
 			      const cmodel_t& cmodel,
 			      const ros::Publisher& pub)	const	;
+    void	set_format(camera_t& camera,
+			   const ReconfServer::AbstractParam& param)
+								const	;
+    void	set_feature(camera_t& camera,
+			    const ReconfServer::AbstractParam& param)
+								const	;
+    void	get_feature(const camera_t& camera,
+			    ReconfServer::AbstractParam& param)	const	;
 
   private:
     ros::NodeHandle				_nh;
     CAMERAS					_cameras;
+    size_t					_n;	// camera # selected
     image_transport::ImageTransport		_it;
     std::vector<image_transport::Publisher>	_pubs;
     std::vector<ros::Publisher>			_cinfo_pubs;
@@ -60,6 +72,7 @@ class CameraArrayNode
 template <class CAMERAS>
 CameraArrayNode<CAMERAS>::CameraArrayNode()
     :_nh("~"),
+     _n(0),
      _it(_nh),
      _max_skew(0),
      _reconf_server(_nh)
@@ -69,6 +82,7 @@ CameraArrayNode<CAMERAS>::CameraArrayNode()
     _nh.param<std::string>("camera_name", camera_name,
 			   CAMERAS::DEFAULT_CAMERA_NAME);
     _cameras.setName(camera_name.c_str()).restore();
+    _n = _cameras.size();				// Select all cameras.
 
   // Set maximum skew allowed for synchronizing multiple cameras.
     _nh.param("max_skew", _max_skew, 0);
@@ -111,9 +125,10 @@ CameraArrayNode<CAMERAS>::CameraArrayNode()
 	}
 	edit_method << "{\'value\': "  << _cameras.size() << ", "
 		    <<  "\'name\': \'all\'}]}";
-	_reconf_server.addParam(0, "select_camera", "select_camera",
+	_reconf_server.addParam(SELECT_CAMERA,
+				"select_camera", "select_camera",
 				edit_method.str(),
-				0, int(_cameras.size()), int(_cameras.size()));
+				0, int(_cameras.size()), int(_n));
     }
     add_parameters();
     _reconf_server.setCallback(boost::bind(&reconf_callback, this, _1, _2));
@@ -164,6 +179,69 @@ CameraArrayNode<CAMERAS>::tick()
     }
 }
 
+template <class CAMERAS> void
+CameraArrayNode<CAMERAS>::reconf_callback(
+    const ReconfServer::Params& new_params,
+    const ReconfServer::Params& old_params)
+{
+    bool	refresh = false;
+    auto	old_param = old_params.begin();
+    for (const auto& new_param : new_params)
+    {
+	if (*new_param != **old_param)
+	{
+	    ROS_DEBUG_STREAM(*new_param);
+
+	    switch (new_param->level)
+	    {
+	      case SELECT_CAMERA:
+		_n = boost::any_cast<int>(new_param->value());
+		refresh = true;
+		break;
+
+	      case PIXEL_FORMAT:
+		for (auto& camera : _cameras)
+		{
+		    camera.continuousShot(false);
+		    set_format(camera, *new_param);
+		    camera.continuousShot(true);
+		}
+		break;
+
+	      default:
+		if (_n < _cameras.size())
+		    set_feature(_cameras[_n], *new_param);
+		else
+		    for (auto& camera : _cameras)
+			set_feature(camera, *new_param);
+		break;
+	    }
+	}
+
+	++old_param;
+    }
+
+    if (refresh)
+    {
+	for (const auto& new_param : new_params)
+	    switch (new_param->level)
+	    {
+	      case SELECT_CAMERA:
+	      case PIXEL_FORMAT:
+		break;
+
+	      default:
+		if (_n < _cameras.size())
+		    get_feature(_cameras[_n], *new_param);
+		else
+		    for (size_t n = 0; n < _cameras.size(); ++n)
+			if (n != _n)
+			    set_feature(_cameras[n], *new_param);
+		break;
+	    }
+    }
+}
+    
 template <class CAMERAS> void
 CameraArrayNode<CAMERAS>::publish_cinfo(const image_t&  image,
 					const cmodel_t& cmodel,
