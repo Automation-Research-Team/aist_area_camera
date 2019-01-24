@@ -48,13 +48,11 @@ class CameraArrayNode
 			      const cmodel_t& cmodel,
 			      const ros::Publisher& pub)	const	;
     void	set_format(camera_t& camera,
-			   const ReconfServer::AbstractParam& param)
-								const	;
+			   const ReconfServer::Param& param)	const	;
     void	set_feature(camera_t& camera,
-			    const ReconfServer::AbstractParam& param)
-								const	;
+			    const ReconfServer::Param& param)	const	;
     void	get_feature(const camera_t& camera,
-			    ReconfServer::AbstractParam& param)	const	;
+			    ReconfServer::Param& param)		const	;
 
   private:
     ros::NodeHandle				_nh;
@@ -195,7 +193,7 @@ CameraArrayNode<CAMERAS>::reconf_callback(
 	    switch (new_param->level)
 	    {
 	      case SELECT_CAMERA:
-		_n = boost::any_cast<int>(new_param->value());
+		_n = new_param->value<int>();
 		refresh = true;
 		break;
 
@@ -233,10 +231,6 @@ CameraArrayNode<CAMERAS>::reconf_callback(
 	      default:
 		if (_n < _cameras.size())
 		    get_feature(_cameras[_n], *new_param);
-		else
-		    for (size_t n = 0; n < _cameras.size(); ++n)
-			if (n != _n)
-			    set_feature(_cameras[n], *new_param);
 		break;
 	    }
     }

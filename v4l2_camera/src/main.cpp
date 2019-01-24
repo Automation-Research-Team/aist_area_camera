@@ -84,27 +84,31 @@ CameraArrayNode<V4L2CameraArray>::add_parameters()
 
 template <> void
 CameraArrayNode<V4L2CameraArray>::set_format(
-    camera_t& camera, const ReconfServer::AbstractParam& param) const
+    camera_t& camera, const ReconfServer::Param& param) const
 {
     TU::setFormat(camera, param.level, 0);
 }
     
 template <> void
 CameraArrayNode<V4L2CameraArray>::set_feature(
-    camera_t& camera, const ReconfServer::AbstractParam& param) const
+    camera_t& camera, const ReconfServer::Param& param) const
 {
-    const auto	val = param.value();
-    if (val.type() == typeid(bool))
-	TU::setFeature(camera, param.level, boost::any_cast<bool>(val));
-    else if (val.type() == typeid(int))
-	TU::setFeature(camera, param.level, boost::any_cast<int>(val));
+    if (param.type_info() == typeid(bool))
+	TU::setFeature(camera, param.level, param.value<bool>());
+    else if (param.type_info() == typeid(int))
+	TU::setFeature(camera, param.level, param.value<int>());
 }
     
 template <> void
 CameraArrayNode<V4L2CameraArray>::get_feature(
-    const camera_t& camera, ReconfServer::AbstractParam& param) const
+    const camera_t& camera, ReconfServer::Param& param) const
 {
-    param.setValue(camera.getValue(V4L2Camera::uintToFeature(param.level)));
+    if (param.type_info() == typeid(bool))
+	param.setValue(bool(camera.getValue(
+				V4L2Camera::uintToFeature(param.level))));
+    else if (param.type_info() == typeid(int))
+	param.setValue(int(camera.getValue(
+			       V4L2Camera::uintToFeature(param.level))));
 }
     
 template <> void

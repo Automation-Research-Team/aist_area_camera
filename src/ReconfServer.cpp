@@ -203,22 +203,20 @@ ReconfServer::reconfCallback(dynamic_reconfigure::Reconfigure::Request&  req,
 }
 
 std::ostream&
-operator <<(std::ostream& out, const ReconfServer::AbstractParam& param)
+operator <<(std::ostream& out, const ReconfServer::Param& param)
 {
     out << std::boolalpha
 	<< '[' << param.name << "]: level=0x"
 	<< std::hex << param.level << std::dec << ",val=";
 
-    const auto	val = param.value();
-    
-    if (val.type() == typeid(bool))
-	out << boost::any_cast<bool>(val);
-    else if (val.type() == typeid(int))
-	out << boost::any_cast<int>(val);
-    else if (val.type() == typeid(double))
-	out << boost::any_cast<double>(val);
-    else if (val.type() == typeid(std::string))
-	out << boost::any_cast<std::string>(val);
+    if (param.type_info() == typeid(bool))
+	out << param.value<bool>();
+    else if (param.type_info() == typeid(int))
+	out << param.value<int>();
+    else if (param.type_info() == typeid(double))
+	out << param.value<double>();
+    else if (param.type_info() == typeid(std::string))
+	out << param.value<std::string>();
     else
 	out << "UNKNOWN";
     return out;

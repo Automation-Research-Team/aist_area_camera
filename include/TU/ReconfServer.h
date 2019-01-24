@@ -40,14 +40,14 @@ class ReconfServer
     using ConfigTools		= dynamic_reconfigure::ConfigTools;
     using Any			= boost::any;
     
-    class AbstractParam : public dynamic_reconfigure::ParamDescription
+    class Param : public dynamic_reconfigure::ParamDescription
     {
       public:
-			AbstractParam(const std::string& name_,
-				      const std::string& type_,
-				      uint32_t		 level_,
-				      const std::string& description_,
-				      const std::string& edit_method_)
+			Param(const std::string& name_,
+			      const std::string& type_,
+			      uint32_t		 level_,
+			      const std::string& description_,
+			      const std::string& edit_method_)
 			{
 			    name	= name_;
 			    type	= type_;
@@ -56,12 +56,20 @@ class ReconfServer
 			    edit_method	= edit_method_;
 			}
 
-	virtual AbstractParam*
-			clone()					const	= 0;
-	virtual Any	value()					const	= 0;
+	virtual Param*	clone()					const	= 0;
+	template <class T>
+	T		value()	const
+			{
+			    return boost::any_cast<T>(val());
+			}
+	const std::type_info&
+			type_info() const
+			{
+			    return val().type();
+			}
 	virtual void	setValue(const Any& val)			= 0;
-	virtual bool	operator ==(const AbstractParam& param)	const	= 0;
-	bool		operator !=(const AbstractParam& param)	const
+	virtual bool	operator ==(const Param& param)		const	= 0;
+	bool		operator !=(const Param& param) const
 			{
 			    return !operator ==(param);
 			}
@@ -70,49 +78,45 @@ class ReconfServer
 	virtual bool	fromMessage(const Config& msg)			= 0;
 	virtual void	toMessage(Config& msg)			const	= 0;
 	virtual void	toMessage(ConfigDescription& desc_msg)	const	= 0;
+
+      protected:
+	virtual Any	val()					const	= 0;
     };
     
     template <class T>
-    class Param final : public AbstractParam
+    class ConcreteParam final : public Param
     {
       public:
-			Param(const std::string& name_,
-			      const std::string& type_,
-			      uint32_t		 level_,
-			      const std::string& description_,
-			      const std::string& edit_method_,
-			      const T& min,  const T& max,
-			      const T& dflt, const T& val)
-			    :AbstractParam(name_, type_, level_,
-					   description_, edit_method_),
+			ConcreteParam(const std::string& name_,
+				      const std::string& type_,
+				      uint32_t		 level_,
+				      const std::string& description_,
+				      const std::string& edit_method_,
+				      const T& min,  const T& max,
+				      const T& dflt, const T& val)
+			    :Param(name_, type_, level_,
+				   description_, edit_method_),
 			    _min(min), _max(max), _dflt(dflt), _val(val)
 			{
-			    ROS_INFO_STREAM("Param[" << name <<
+			    ROS_INFO_STREAM("ConcreteParam[" << name <<
 					    "]: type=" << type
 					    << std::hex << ",level=0x" << level
 					    << std::dec << ",val="<< _val);
 			}
 
-	virtual AbstractParam*
-			clone() const
+	virtual Param*	clone() const
 			{
-			    return new Param(*this);
+			    return new ConcreteParam(*this);
 			}
 	
-	virtual Any	value()	const
-			{
-			    return _val;
-			}
-
 	virtual void	setValue(const Any& val)
 			{
 			    _val = boost::any_cast<T>(val);
 			}
 
-	virtual bool	operator ==(const AbstractParam& param) const
+	virtual bool	operator ==(const Param& param) const
 			{
-			    return _val == boost::any_cast<const T&>(
-						param.value());
+			    return _val == param.value<T>();
 			}
 
 	virtual void	fromServer(const ros::NodeHandle& nh)
@@ -150,6 +154,12 @@ class ReconfServer
 							 name, _dflt);
 			}
 
+      protected:
+	virtual Any	val() const
+			{
+			    return _val;
+			}
+	
       private:
 	void		clamp()
 			{
@@ -166,7 +176,7 @@ class ReconfServer
 	T		_val;
     };
 
-    class Params : public std::vector<std::unique_ptr<AbstractParam> >
+    class Params : public std::vector<std::unique_ptr<Param> >
     {
       public:
 		Params()					= default;
@@ -251,11 +261,10 @@ class ReconfServer
 					  c = '_';
 				  });
 
-		    _params.emplace_back(new Param<T>(canonical_name,
-						      type_name<T>(),
-						      level,
-						      description, edit_method,
-						      min, max, dflt, dflt));
+		    _params.emplace_back(new ConcreteParam<T>(
+					     canonical_name, type_name<T>(),
+					     level, description, edit_method,
+					     min, max, dflt, dflt));
 		}
 
     void	setCallback(const CallbackType& callback)		;
@@ -287,15 +296,15 @@ class ReconfServer
 };
 
 template <> inline void
-ReconfServer::Param<std::string>::clamp()				{}
+ReconfServer::ConcreteParam<std::string>::clamp()			{}
 template <> inline void
-ReconfServer::Param<bool>::clamp()					{}
+ReconfServer::ConcreteParam<bool>::clamp()				{}
 
 /************************************************************************
 *  I/O functions							*
 ************************************************************************/
 std::ostream&
-operator <<(std::ostream& out, const ReconfServer::AbstractParam& param);
+operator <<(std::ostream& out, const ReconfServer::Param& param)	;
 
 std::ostream&
 operator <<(std::ostream& out, const ReconfServer::Params& params)	;
