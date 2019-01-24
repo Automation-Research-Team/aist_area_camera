@@ -132,6 +132,7 @@ CameraArrayNode<CAMERAS>::CameraArrayNode()
     _reconf_server.setCallback(boost::bind(&reconf_callback, this, _1, _2));
 
   // Start cameras.
+    ros::Duration(0.5).sleep();
     for (auto& camera : _cameras)
 	camera.continuousShot(true);
 }
