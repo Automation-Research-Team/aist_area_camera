@@ -26,12 +26,12 @@ ReconfServer::setCallback(const CallbackType& callback)
 
     _groups.emplace_back("Default", "", 0, 0, true, _params);
 		    
-    ConfigDescription	description_message;
-    toMessage(description_message);
+    ConfigDescription	config_desc;
+    toMessage(config_desc);
     for (const auto& group : _groups)
-	description_message.groups.emplace_back(group);
+	config_desc.groups.emplace_back(group);
 
-    _parameter_descriptions_pub.publish(description_message);
+    _parameter_descriptions_pub.publish(config_desc);
 
     _callback = callback;
 }
@@ -44,6 +44,15 @@ ReconfServer::clearCallback()
     _callback.clear();
 }
 
+std::string
+ReconfServer::canonicalName(const std::string& name)
+{
+    auto	canonical_name = name;
+    std::for_each(canonical_name.begin(), canonical_name.end(),
+		  [](auto&& c){ if (!isalnum(c)) c = '_'; });
+    return canonical_name;
+}
+    
 void
 ReconfServer::fromServer() const
 {
@@ -87,16 +96,16 @@ ReconfServer::toServer() const
 }
 
 bool
-ReconfServer::fromMessage(const Config& msg) const
+ReconfServer::fromMessage(const Config& config) const
 {
     try
     {
 	for (const auto& param : _params)
-	    param->fromMessage(msg);
+	    param->fromMessage(config);
 
 	for (const auto& group : _groups)
 	    if (group.id == 0)
-		group.fromMessage(msg);
+		group.fromMessage(config);
     }
     catch (const std::exception& err)
     {
@@ -109,18 +118,18 @@ ReconfServer::fromMessage(const Config& msg) const
 }
     
 void
-ReconfServer::toMessage(Config& msg) const
+ReconfServer::toMessage(Config& config) const
 {
     try
     {
-	ConfigTools::clear(msg);
+	ConfigTools::clear(config);
 
 	for (const auto& param : _params)
-	    param->toMessage(msg);
+	    param->toMessage(config);
 
 	for (const auto& group : _groups)
 	    if (group.id == 0)
-		group.toMessage(msg);
+		group.toMessage(config);
     }
     catch (const std::exception& err)
     {
@@ -133,23 +142,23 @@ ReconfServer::toMessage(Config& msg) const
 }
 
 void
-ReconfServer::toMessage(ConfigDescription& desc_msg) const
+ReconfServer::toMessage(ConfigDescription& config_desc) const
 {
     try
     {
-	ConfigTools::clear(desc_msg.min);
-	ConfigTools::clear(desc_msg.max);
-	ConfigTools::clear(desc_msg.dflt);
+	ConfigTools::clear(config_desc.min);
+	ConfigTools::clear(config_desc.max);
+	ConfigTools::clear(config_desc.dflt);
 
 	for (const auto& param : _params)
-	    param->toMessage(desc_msg);
+	    param->toMessage(config_desc);
 
 	for (const auto& group : _groups)
 	    if (group.id == 0)
 	    {
-		group.toMessage(desc_msg.min);
-		group.toMessage(desc_msg.max);
-		group.toMessage(desc_msg.dflt);
+		group.toMessage(config_desc.min);
+		group.toMessage(config_desc.max);
+		group.toMessage(config_desc.dflt);
 	    }
     }
     catch (const std::exception& err)
@@ -168,9 +177,6 @@ ReconfServer::reconfCallback(dynamic_reconfigure::Reconfigure::Request&  req,
 {
     std::lock_guard<std::mutex>	lock(_mutex);
 
-    const auto	params = _params;	// Keep copy of original params.
-    fromMessage(req.config);		// req.config ==> _params
-
     if (!_callback)
     {
 	ROS_DEBUG_STREAM("ReconfServer::reconfCallback(): "
@@ -178,15 +184,18 @@ ReconfServer::reconfCallback(dynamic_reconfigure::Reconfigure::Request&  req,
 	return;
     }
 		    
+    const auto	params = _params;	// Keep original params.
+    fromMessage(req.config);		// req.config ==> _params
+
     try
     {
 	_callback(_params, params);
 
 	toServer();
 			
-	Config	msg;
-	toMessage(msg);				// msg <== _params
-	_parameter_update_pub.publish(msg);
+	Config	config;
+	toMessage(config);			// config <== _params
+	_parameter_update_pub.publish(config);	// publish config
     }
     catch (const std::exception& err)
     {

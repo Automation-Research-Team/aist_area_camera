@@ -56,7 +56,7 @@ class ReconfServer
 			    edit_method	= edit_method_;
 			}
 
-	virtual Param*	clone()					const	= 0;
+	virtual Param*	clone()					  const	= 0;
 	template <class T>
 	T		value()	const
 			{
@@ -68,19 +68,19 @@ class ReconfServer
 			    return val().type();
 			}
 	virtual void	setValue(const Any& val)			= 0;
-	virtual bool	operator ==(const Param& param)		const	= 0;
+	virtual bool	operator ==(const Param& param)		  const	= 0;
 	bool		operator !=(const Param& param) const
 			{
 			    return !operator ==(param);
 			}
 	virtual void	fromServer(const ros::NodeHandle& nh)		= 0;
-	virtual void	toServer(const ros::NodeHandle& nh)	const	= 0;
-	virtual bool	fromMessage(const Config& msg)			= 0;
-	virtual void	toMessage(Config& msg)			const	= 0;
-	virtual void	toMessage(ConfigDescription& desc_msg)	const	= 0;
+	virtual void	toServer(const ros::NodeHandle& nh)	  const	= 0;
+	virtual bool	fromMessage(const Config& config)		= 0;
+	virtual void	toMessage(Config& config)		  const	= 0;
+	virtual void	toMessage(ConfigDescription& config_desc) const	= 0;
 
       protected:
-	virtual Any	val()					const	= 0;
+	virtual Any	val()					  const	= 0;
     };
     
     template <class T>
@@ -130,27 +130,27 @@ class ReconfServer
 			    nh.setParam(name, _val);
 			}
 
-	virtual bool	fromMessage(const Config& msg)
+	virtual bool	fromMessage(const Config& config)
 			{
-			    if (!ConfigTools::getParameter(msg, name, _val))
+			    if (!ConfigTools::getParameter(config, name, _val))
 				return false;
 
 			    clamp();
 			    return true;
 			}
 
-	virtual void	toMessage(Config& msg) const
+	virtual void	toMessage(Config& config) const
 			{
-			    ConfigTools::appendParameter(msg, name, _val);
+			    ConfigTools::appendParameter(config, name, _val);
 			}
 
-	virtual void	toMessage(ConfigDescription& desc_msg) const
+	virtual void	toMessage(ConfigDescription& config_desc) const
 			{
-			    ConfigTools::appendParameter(desc_msg.min,
+			    ConfigTools::appendParameter(config_desc.min,
 							 name, _min);
-			    ConfigTools::appendParameter(desc_msg.max,
+			    ConfigTools::appendParameter(config_desc.max,
 							 name, _max);
-			    ConfigTools::appendParameter(desc_msg.dflt,
+			    ConfigTools::appendParameter(config_desc.dflt,
 							 name, _dflt);
 			}
 
@@ -227,14 +227,14 @@ class ReconfServer
 				    << type << ",id=" << id);
 		}
 	
-	bool	fromMessage(const Config& msg)
+	bool	fromMessage(const Config& config)
 		{
-		    return ConfigTools::getGroupState(msg, name, *this);
+		    return ConfigTools::getGroupState(config, name, *this);
 		}
 
-	void	toMessage(Config& msg) const
+	void	toMessage(Config& config) const
 		{
-		    ConfigTools::appendGroup(msg, name, id, parent, *this);
+		    ConfigTools::appendGroup(config, name, id, parent, *this);
 		}
 	
       public:
@@ -253,16 +253,9 @@ class ReconfServer
 			 const std::string& edit_method,
 			 const T& min, const T& max, const T& dflt)
 		{
-		    auto	canonical_name = name;
-		    std::for_each(canonical_name.begin(), canonical_name.end(),
-				  [](auto&& c)
-				  {
-				      if (!isalnum(c))
-					  c = '_';
-				  });
-
 		    _params.emplace_back(new ConcreteParam<T>(
-					     canonical_name, type_name<T>(),
+					     canonicalName(name),
+					     type_name<T>(),
 					     level, description, edit_method,
 					     min, max, dflt, dflt));
 		}
@@ -271,12 +264,13 @@ class ReconfServer
     void	clearCallback()						;
 
   private:
-    uint32_t	calcLevel(const Params& params)			const	;
+    static std::string
+		canonicalName(const std::string& name)			;
     void	fromServer()					const	;
     void	toServer()					const	;
-    bool	fromMessage(const Config& msg)			const	;
-    void	toMessage(Config& msg)				const	;
-    void	toMessage(ConfigDescription& desc_msg)		const	;
+    bool	fromMessage(const Config& config)		const	;
+    void	toMessage(Config& config)			const	;
+    void	toMessage(ConfigDescription& config_desc)	const	;
     bool	reconfCallback(
 		    dynamic_reconfigure::Reconfigure::Request&  req,
 		    dynamic_reconfigure::Reconfigure::Response& rsp)	;

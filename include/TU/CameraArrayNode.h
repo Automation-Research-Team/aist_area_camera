@@ -200,11 +200,7 @@ CameraArrayNode<CAMERAS>::reconf_callback(
 
 	      case PIXEL_FORMAT:
 		for (auto& camera : _cameras)
-		{
-		    camera.continuousShot(false);
 		    set_format(camera, *new_param);
-		    camera.continuousShot(true);
-		}
 		break;
 
 	      default:
