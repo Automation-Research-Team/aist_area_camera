@@ -32,7 +32,7 @@ CameraArrayNode<V4L2CameraArray>::add_parameters()
 		    <<  "\'name\': \'" << camera.getName(pixelFormat) << "\'}";
     }
     edit_method << "]}";
-    _reconf_server.addParam(PIXEL_FORMAT, "pixel_format", "pixe format",
+    _reconf_server.addParam(PIXEL_FORMAT, "Pixel Format", "Pixel Format",
 			    edit_method.str(),
 			    std::numeric_limits<int>::min(),
 			    std::numeric_limits<int>::max(),

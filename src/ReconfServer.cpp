@@ -24,10 +24,11 @@ ReconfServer::setCallback(const CallbackType& callback)
 {
     std::lock_guard<std::mutex>	lock(_mutex);
 
+  // Create a "Default" group with parameters stored in "_params".
     _groups.emplace_back("Default", "", 0, 0, true, _params);
 		    
     ConfigDescription	config_desc;
-    toMessage(config_desc);
+    toMessage(config_desc);			// Set min/max/dflt values.
     for (const auto& group : _groups)
 	config_desc.groups.emplace_back(group);
 
@@ -49,7 +50,7 @@ ReconfServer::canonicalName(const std::string& name)
 {
     auto	canonical_name = name;
     std::for_each(canonical_name.begin(), canonical_name.end(),
-		  [](auto&& c){ if (!isalnum(c)) c = '_'; });
+		  [](auto&& c){ if (!isspace(c) && !isalnum(c)) c = '_'; });
     return canonical_name;
 }
     
@@ -151,15 +152,11 @@ ReconfServer::toMessage(ConfigDescription& config_desc) const
 	ConfigTools::clear(config_desc.dflt);
 
 	for (const auto& param : _params)
-	    param->toMessage(config_desc);
+	    param->toMessage(config_desc);	// Set min/ max/dflt values.
 
 	for (const auto& group : _groups)
 	    if (group.id == 0)
-	    {
-		group.toMessage(config_desc.min);
-		group.toMessage(config_desc.max);
-		group.toMessage(config_desc.dflt);
-	    }
+		group.toMessage(config_desc);
     }
     catch (const std::exception& err)
     {

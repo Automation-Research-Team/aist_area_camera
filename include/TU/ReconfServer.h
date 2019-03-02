@@ -236,6 +236,13 @@ class ReconfServer
 		{
 		    ConfigTools::appendGroup(config, name, id, parent, *this);
 		}
+
+	void	toMessage(ConfigDescription& config_desc) const
+		{
+		    toMessage(config_desc.min);
+		    toMessage(config_desc.max);
+		    toMessage(config_desc.dflt);
+		}
 	
       public:
 	bool	state;
