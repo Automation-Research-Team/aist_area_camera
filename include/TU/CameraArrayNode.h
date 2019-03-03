@@ -156,12 +156,11 @@ CameraArrayNode<CAMERAS>::tick()
 	for (auto& camera : _cameras)
 	    camera.snap();
 
-    image_t	image;
-
     for (size_t i = 0; i < _cameras.size(); ++i)
     {
 	const auto&	camera = _cameras[i];
 	const auto	nsec = camera.getTimestamp().time_since_epoch();
+	image_t		image;
 
 	image.header.stamp	= {nsec.count() / 1000000000,
 				   nsec.count() % 1000000000};
