@@ -17,15 +17,23 @@ ReconfServer::ReconfServer(const ros::NodeHandle& nh)
 	 _nh.advertise<ConfigDescription>("parameter_descriptions", 1, true)),
      _parameter_update_pub(_nh.advertise<Config>("parameter_updates", 1, true))
 {
+    addGroup(DEFAULT_GROUP, "default", true);
 }
     
+int32_t
+ReconfServer::addGroup(int32_t parent, const std::string& name, bool state)
+{
+    _groups.emplace_back(name, "", parent, _groups.size(), state);
+    return _groups.size() - 1;
+}
+
 void
 ReconfServer::setCallback(const CallbackType& callback)
 {
     std::lock_guard<std::mutex>	lock(_mutex);
 
   // Create a "Default" group with parameters stored in "_params".
-    _groups.emplace_back("Default", "", 0, 0, true, _params);
+  //_groups.emplace_back("Default", "", 0, 0, true, _params);
 		    
     ConfigDescription	config_desc;
     toMessage(config_desc);			// Set min/max/dflt values.
@@ -50,7 +58,7 @@ ReconfServer::canonicalName(const std::string& name)
 {
     auto	canonical_name = name;
     std::for_each(canonical_name.begin(), canonical_name.end(),
-		  [](auto&& c){ if (!isspace(c) && !isalnum(c)) c = '_'; });
+		  [](auto&& c){ if (c != '/' && !isalnum(c)) c = '_'; });
     return canonical_name;
 }
     
@@ -59,14 +67,8 @@ ReconfServer::fromServer() const
 {
     try
     {
-	static bool	setup = false;
-
 	for (const auto& param : _params)
 	    param->fromServer(_nh);
-		    
-	for (const auto& group : _groups)
-	    if (!setup && group.id == 0)
-		setup = true;
     }
     catch (const std::exception& err)
     {
@@ -105,8 +107,7 @@ ReconfServer::fromMessage(const Config& config) const
 	    param->fromMessage(config);
 
 	for (const auto& group : _groups)
-	    if (group.id == 0)
-		group.fromMessage(config);
+	    group.fromMessage(config);
     }
     catch (const std::exception& err)
     {
@@ -129,8 +130,7 @@ ReconfServer::toMessage(Config& config) const
 	    param->toMessage(config);
 
 	for (const auto& group : _groups)
-	    if (group.id == 0)
-		group.toMessage(config);
+	    group.toMessage(config);
     }
     catch (const std::exception& err)
     {

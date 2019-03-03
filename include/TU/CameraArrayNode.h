@@ -28,7 +28,6 @@ class CameraArrayNode
 				IntrinsicBase<double> > >;
 
     constexpr static int	SELECT_CAMERA	= 0;
-    constexpr static int	PIXEL_FORMAT	= 1;
     
   public:
 		CameraArrayNode()					;
@@ -47,8 +46,6 @@ class CameraArrayNode
     void	publish_cinfo(const image_t&  image,
 			      const cmodel_t& cmodel,
 			      const ros::Publisher& pub)	const	;
-    void	set_format(camera_t& camera,
-			   const ReconfServer::Param& param)	const	;
     void	set_feature(camera_t& camera,
 			    const ReconfServer::Param& param)	const	;
     void	get_feature(const camera_t& camera,
@@ -123,7 +120,7 @@ CameraArrayNode<CAMERAS>::CameraArrayNode()
 	}
 	edit_method << "{\'value\': "  << _cameras.size() << ", "
 		    <<  "\'name\': \'all\'}]}";
-	_reconf_server.addParam(SELECT_CAMERA,
+	_reconf_server.addParam(ReconfServer::DEFAULT_GROUP, SELECT_CAMERA,
 				"select_camera", "select_camera",
 				edit_method.str(),
 				0, int(_cameras.size()), int(_n));
@@ -191,25 +188,18 @@ CameraArrayNode<CAMERAS>::reconf_callback(
 	{
 	    ROS_DEBUG_STREAM(*new_param);
 
-	    switch (new_param->level)
+	    if (new_param->level == SELECT_CAMERA)
 	    {
-	      case SELECT_CAMERA:
 		_n = new_param->value<int>();
 		refresh = true;
-		break;
-
-	      case PIXEL_FORMAT:
-		for (auto& camera : _cameras)
-		    set_format(camera, *new_param);
-		break;
-
-	      default:
+	    }
+	    else
+	    {
 		if (_n < _cameras.size())
 		    set_feature(_cameras[_n], *new_param);
 		else
 		    for (auto& camera : _cameras)
 			set_feature(camera, *new_param);
-		break;
 	    }
 	}
 
@@ -219,17 +209,8 @@ CameraArrayNode<CAMERAS>::reconf_callback(
     if (refresh)
     {
 	for (const auto& new_param : new_params)
-	    switch (new_param->level)
-	    {
-	      case SELECT_CAMERA:
-	      case PIXEL_FORMAT:
-		break;
-
-	      default:
-		if (_n < _cameras.size())
-		    get_feature(_cameras[_n], *new_param);
-		break;
-	    }
+	    if (new_param->level != SELECT_CAMERA && _n < _cameras.size())
+		get_feature(_cameras[_n], *new_param);
     }
 }
     

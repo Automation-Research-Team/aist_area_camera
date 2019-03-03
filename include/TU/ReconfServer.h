@@ -208,19 +208,15 @@ class ReconfServer
       public:
 		Group(const std::string& name_,
 		      const std::string& type_,
-		      int		 parent_,
-		      int		 id_,
-		      bool		 state_,
-		      const Params&	 params_)
+		      int32_t		 parent_,
+		      int32_t		 id_,
+		      bool		 state_)
 		    :state(state_)
 		{
 		    name   = name_;
 		    type   = type_;
 		    parent = parent_;
 		    id	   = id_;
-
-		    for (const auto& param : params_)
-			parameters.emplace_back(*param);
 
 		    ROS_INFO_STREAM("GroupDescription["
 				    << name << "]: type="
@@ -253,18 +249,32 @@ class ReconfServer
   public:
 		ReconfServer(const ros::NodeHandle& nh)			;
 
+    int32_t	addGroup(int32_t parent,
+			 const std::string& name, bool state)		;
+
     template <class T>
-    void	addParam(uint32_t level,
+    void	addParam(int32_t parent, uint32_t level,
 			 const std::string& name,
 			 const std::string& description,
 			 const std::string& edit_method,
 			 const T& min, const T& max, const T& dflt)
 		{
+		    const auto	group = std::find_if(
+					    _groups.begin(), _groups.end(),
+					    [parent](const auto& group)
+					    { return group.id == parent; });
+		    		    
+		    if (group == _groups.end())
+			throw std::runtime_error("ReconfServer::addParam(): a group with id="
+						 + std::to_string(parent)
+						 + "is not found!");
+		    
 		    _params.emplace_back(new ConcreteParam<T>(
 					     canonicalName(name),
 					     type_name<T>(),
 					     level, description, edit_method,
 					     min, max, dflt, dflt));
+		    group->parameters.emplace_back(*_params.back());
 		}
 
     void	setCallback(const CallbackType& callback)		;
@@ -282,6 +292,9 @@ class ReconfServer
 		    dynamic_reconfigure::Reconfigure::Request&  req,
 		    dynamic_reconfigure::Reconfigure::Response& rsp)	;
 
+  public:
+    constexpr static uint32_t	DEFAULT_GROUP = 0;
+    
   private:
     ros::NodeHandle		_nh;
     const ros::ServiceServer	_set_parameters_srv;
