@@ -32,15 +32,11 @@ ReconfServer::setCallback(const CallbackType& callback)
 {
     std::lock_guard<std::mutex>	lock(_mutex);
 
-  // Create a "Default" group with parameters stored in "_params".
-  //_groups.emplace_back("Default", "", 0, 0, true, _params);
-		    
     ConfigDescription	config_desc;
-    toMessage(config_desc);			// Set min/max/dflt values.
-    for (const auto& group : _groups)
-	config_desc.groups.emplace_back(group);
-
+    toMessage(config_desc);  // Set and append to min/max/dflt values/groups.
     _parameter_descriptions_pub.publish(config_desc);
+
+    toServer();
 
     _callback = callback;
 }
@@ -150,13 +146,16 @@ ReconfServer::toMessage(ConfigDescription& config_desc) const
 	ConfigTools::clear(config_desc.min);
 	ConfigTools::clear(config_desc.max);
 	ConfigTools::clear(config_desc.dflt);
-
+	config_desc.groups.clear();
+	
 	for (const auto& param : _params)
-	    param->toMessage(config_desc);	// Set min/ max/dflt values.
+	    param->toMessage(config_desc);  // Set min/max/dflt values.
 
 	for (const auto& group : _groups)
-	    if (group.id == 0)
-		group.toMessage(config_desc);
+	{
+	    group.toMessage(config_desc);  // Append to min/max/dflt groups.
+	    config_desc.groups.emplace_back(group);
+	}
     }
     catch (const std::exception& err)
     {
