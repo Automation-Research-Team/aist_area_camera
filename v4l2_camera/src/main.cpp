@@ -26,6 +26,7 @@ CameraArrayNode<V4L2CameraArray>::add_parameters()
 						false);
 	std::ostringstream	edit_method;
 	int			idx = 0;
+	int			current = 0;
 	
 	edit_method << "{\'enum\': [";
 	BOOST_FOREACH (const auto& frameSize,
@@ -34,15 +35,22 @@ CameraArrayNode<V4L2CameraArray>::add_parameters()
 	    if (idx != 0)
 		edit_method << ", ";
 
-	    edit_method << "{\'value\': "  << idx++ << ", "
+	    edit_method << "{\'value\': "  << idx<< ", "
 			<<  "\'name\': \'" << frameSize
 			<< "\'}";
+
+	    if (camera.pixelFormat() == pixelFormat	 &&
+		frameSize.width.involves(camera.width()) &&
+		frameSize.height.involves(camera.height()))
+		current = idx;
+
+	    ++idx;
 	}
 	edit_method << "]}";
 	
 	_reconf_server.addParam(parent, pixelFormat,
 				"Frame Size", "Frame Size",
-				edit_method.str(), 0, idx - 1, 0);
+				edit_method.str(), 0, idx - 1, current);
     }
 
   // Add feature commands.
@@ -144,6 +152,20 @@ CameraArrayNode<V4L2CameraArray>::get_feature(
 #ifdef V4L2_PIX_FMT_SRGGB8
       case V4L2Camera::SRGGB8:
 #endif
+      {
+	const auto pixelFormat = V4L2Camera::uintToPixelFormat(param.level);
+
+	int	idx = 0;
+	BOOST_FOREACH (const auto& frameSize,
+		       camera.availableFrameSizes(pixelFormat))
+	{
+	    if (camera.pixelFormat() == pixelFormat	 &&
+		frameSize.width.involves(camera.width()) &&
+		frameSize.height.involves(camera.height()))
+		param.setValue(idx);
+	    ++idx;
+	}
+      }
 	break;
 	
       default:
