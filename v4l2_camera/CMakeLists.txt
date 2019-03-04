@@ -54,6 +54,7 @@ target_link_libraries(
   optimized ${catkin_LIBRARIES}
   ${Boost_LIBRARIES}
   ${TUV4L2PP_LIB}
+  ${TUTOOLSPP_LIB}
 )
 
 install(

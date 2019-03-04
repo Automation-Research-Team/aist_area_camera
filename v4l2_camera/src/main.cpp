@@ -8,7 +8,7 @@
 namespace TU
 {
 /************************************************************************
-*   class CameraArrayNode<V4L2CameraArray>				*
+*  class CameraArrayNode<V4L2CameraArray>				*
 ************************************************************************/
 template <> void
 CameraArrayNode<V4L2CameraArray>::add_parameters()
@@ -181,74 +181,65 @@ CameraArrayNode<V4L2CameraArray>::get_feature(
     
 template <> void
 CameraArrayNode<V4L2CameraArray>::publish_image(
-    const camera_t& camera, image_t& image,
+    const camera_t& camera, const header_t& header,
     const image_transport::Publisher& pub) const
 {
     using namespace	sensor_msgs;
 
     switch (camera.pixelFormat())
     {
-      case V4L2Camera::UYVY:
+      case V4L2Camera::BGR24:
+	publish_image<BGR>(camera, header, pub, image_encodings::BGR8);
+	break;
+      case V4L2Camera::RGB24:
+	publish_image<RGB>(camera, header, pub, image_encodings::RGB8);
+	break;
+      case V4L2Camera::BGR32:
+	publish_image<BGRA>(camera, header, pub, image_encodings::BGRA8);
+	break;
+      case V4L2Camera::RGB32:
+	publish_image<ARGB>(camera, header, pub, image_encodings::RGBA8);
+	break;
+      case V4L2Camera::GREY:
+	publish_image<uint8_t>(camera, header, pub, image_encodings::MONO8);
+	break;
+      case V4L2Camera::Y16:
+	publish_image<uint16_t>(camera, header, pub, image_encodings::MONO16);
+	break;
       case V4L2Camera::YUYV:
-	image.encoding = image_encodings::YUV422;
+	publish_image<YUYV422>(camera, header, pub, image_encodings::YUV422);
+	break;
+      case V4L2Camera::UYVY:
+	publish_image<YUV422>(camera, header, pub, image_encodings::YUV422);
+	break;
+      case V4L2Camera::SBGGR8:
+	publish_image<uint8_t>(camera, header, pub,
+			       image_encodings::BAYER_BGGR8);
+	break;
+      case V4L2Camera::SGBRG8:
+	publish_image<uint8_t>(camera, header, pub,
+			       image_encodings::BAYER_GBRG8);
+	break;
+      case V4L2Camera::SGRBG8:
+	publish_image<uint8_t>(camera, header, pub,
+			       image_encodings::BAYER_GRBG8);
 	break;
 #ifdef V4L2_PIX_FMT_SRGGB8
       case V4L2Camera::SRGGB8:
-	image.encoding = image_encodings::BAYER_RGGB8;
+	publish_image<uint8_t>(camera, header, pub,
+			       image_encodings::BAYER_RGGB8);
 	break;
 #endif
-      case V4L2Camera::SBGGR8:
-	image.encoding = image_encodings::BAYER_BGGR8;
-	break;
-      case V4L2Camera::SGBRG8:
-	image.encoding = image_encodings::BAYER_GBRG8;
-	break;
-      case V4L2Camera::SGRBG8:
-	image.encoding = image_encodings::BAYER_GRBG8;
-	break;
-      case V4L2Camera::GREY:
-	image.encoding = image_encodings::MONO8;
-	break;
-      case V4L2Camera::Y16:
-	image.encoding = image_encodings::MONO16;
-	break;
-      case V4L2Camera::BGR24:
-	image.encoding = image_encodings::BGR8;
-	break;
-      case V4L2Camera::RGB24:
-	image.encoding = image_encodings::RGB8;
-	break;
-      case V4L2Camera::BGR32:
-	image.encoding = image_encodings::BGRA8;
-	break;
-      case V4L2Camera::RGB32:
-	image.encoding = image_encodings::RGBA8;
-	break;
       default:
 	ROS_WARN_STREAM("Unsupported image encoding!");
-	return;
+	break;
     }
-
-    image.step = image.width
-	       *  image_encodings::numChannels(image.encoding)
-	       * (image_encodings::bitDepth(image.encoding)/8);
-    image.data.resize(image.step * image.height);
-
-    camera.captureRaw(image.data.data());
-
-    if (camera.pixelFormat() == V4L2Camera::YUYV)
-	std::copy(reinterpret_cast<const YUYV422*>(image.data.data()),
-		  reinterpret_cast<const YUYV422*>(image.data.data() +
-						   image.data.size()),
-		  reinterpret_cast<YUV422*>(image.data.data()));
-
-    pub.publish(image);
 }
 
 }	// namespace TU
 
 /************************************************************************
-*   global functions                                                    *
+*  global functions							*
 ************************************************************************/
 int
 main(int argc, char** argv)

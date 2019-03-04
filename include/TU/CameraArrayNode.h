@@ -11,17 +11,34 @@
 #include <sensor_msgs/image_encodings.h>
 #include "TU/Camera++.h"
 #include "TU/ReconfServer.h"
+#include "TU/Image++.h"
 
 namespace TU
 {
 /************************************************************************
-*   class CameraArray<CAMERAS>                                          *
+*  static functions							*
+************************************************************************/
+template <class T> static void
+fix_yuyv(void* begin, void* end)
+{
+}
+    
+template <> void
+fix_yuyv<YUYV422>(void* begin, void* end)
+{
+    std::copy(static_cast<const YUYV422*>(begin),
+	      static_cast<const YUYV422*>(end), static_cast<YUV422*>(begin));
+}
+    
+/************************************************************************
+*  class CameraArray<CAMERAS>						*
 ************************************************************************/
 template <class CAMERAS>
 class CameraArrayNode
 {
   private:
     using camera_t = typename CAMERAS::value_type;
+    using header_t = std_msgs::Header;
     using image_t  = sensor_msgs::Image;
     using cinfo_t  = sensor_msgs::CameraInfo;
     using cmodel_t = Camera<IntrinsicWithDistortion<
@@ -40,25 +57,33 @@ class CameraArrayNode
     void	reconf_callback(const ReconfServer::Params& new_params,
 				const ReconfServer::Params& old_params)	;
     void	publish_image(const camera_t& camera,
-			      image_t& image,
+			      const header_t& header,
 			      const image_transport::Publisher& pub)
 								const	;
-    void	publish_cinfo(const image_t&  image,
+    template <class T>
+    void	publish_image(const camera_t& camera,
+			      const header_t& header,
+			      const image_transport::Publisher& pub,
+			      const std::string& encoding)	const	;
+    void	publish_cinfo(const camera_t& camera,
+			      const header_t& header,
 			      const cmodel_t& cmodel,
 			      const ros::Publisher& pub)	const	;
     void	set_feature(camera_t& camera,
 			    const ReconfServer::Param& param)	const	;
     void	get_feature(const camera_t& camera,
 			    ReconfServer::Param& param)		const	;
-
+    
   private:
     ros::NodeHandle				_nh;
     CAMERAS					_cameras;
     size_t					_n;	// camera # selected
+    mutable std::vector<uint8_t>		_image;
     image_transport::ImageTransport		_it;
     std::vector<image_transport::Publisher>	_pubs;
     std::vector<ros::Publisher>			_cinfo_pubs;
     int						_max_skew;
+    bool					_convert_to_rgb;
     std::vector<cmodel_t>			_cmodels;
 
     ReconfServer				_reconf_server;
@@ -70,6 +95,7 @@ CameraArrayNode<CAMERAS>::CameraArrayNode()
      _n(0),
      _it(_nh),
      _max_skew(0),
+     _convert_to_rgb(false),
      _reconf_server(_nh)
 {
   // Restore camera configurations and create cameras.
@@ -82,6 +108,9 @@ CameraArrayNode<CAMERAS>::CameraArrayNode()
   // Set maximum skew allowed for synchronizing multiple cameras.
     _nh.param("max_skew", _max_skew, 0);
 
+  // Set whether converting color formats to RGB or not.
+    _nh.param("convert_to_rgb", _convert_to_rgb, false);
+    
   // Create publishers.
     for (size_t i = 0; i < _cameras.size(); ++i)
     {
@@ -159,18 +188,14 @@ CameraArrayNode<CAMERAS>::tick()
     for (size_t i = 0; i < _cameras.size(); ++i)
     {
 	const auto&	camera = _cameras[i];
-	const auto	nsec = camera.getTimestamp().time_since_epoch();
-	image_t		image;
+	const auto	nsec   = camera.getTimestamp().time_since_epoch();
+	header_t	header;
+	header.stamp	= {nsec.count() / 1000000000,
+			   nsec.count() % 1000000000};
+	header.frame_id	= "camera" + std::to_string(i);
 
-	image.header.stamp	= {nsec.count() / 1000000000,
-				   nsec.count() % 1000000000};
-	image.header.frame_id	= "camera" + std::to_string(i);
-	image.is_bigendian	= 0;
-	image.height		= camera.height();
-	image.width		= camera.width();
-
-	publish_image(camera, image, _pubs[i]);
-	publish_cinfo(image, _cmodels[i], _cinfo_pubs[i]);
+	publish_image(camera, header, _pubs[i]);
+	publish_cinfo(camera, header, _cmodels[i], _cinfo_pubs[i]);
     }
 }
 
@@ -213,17 +238,94 @@ CameraArrayNode<CAMERAS>::reconf_callback(
     }
 }
     
+template <class CAMERAS> template <class T> void
+CameraArrayNode<CAMERAS>::publish_image(const camera_t& camera,
+					const header_t& header,
+					const image_transport::Publisher& pub,
+					const std::string& encoding) const
+{
+    using namespace	sensor_msgs;
+
+    image_t	image;
+    image.header = header;
+    image.height = camera.height();
+    image.width	 = camera.width();
+
+    if (_convert_to_rgb)
+    {
+	if (encoding == image_encodings::BAYER_BGGR8 ||
+	    encoding == image_encodings::BAYER_GBRG8 ||
+#ifdef V4L2_PIX_FMT_SRGGB8
+	    encoding == image_encodings::BAYER_RGGB8 ||
+#endif
+	    encoding == image_encodings::BAYER_GRBG8)
+	{
+	    image.encoding = image_encodings::RGB8;
+	    image.step	   = image.width
+			   *  image_encodings::numChannels(image.encoding)
+			   * (image_encodings::bitDepth(image.encoding)/8);
+	    image.data.resize(image.step * image.height);
+
+	    camera.captureBayerRaw(image.data.data());
+	}
+	else if (encoding == image_encodings::BGR8  ||
+		 encoding == image_encodings::BGRA8 ||
+		 encoding == image_encodings::RGBA8 ||
+		 encoding == image_encodings::YUV422)
+	{
+	    image.encoding = image_encodings::RGB8;
+	    image.step	   = image.width
+			   *  image_encodings::numChannels(image.encoding)
+			   * (image_encodings::bitDepth(image.encoding)/8);
+	    image.data.resize(image.step * image.height);
+
+	    _image.resize(camera.width() * camera.height() * sizeof(T));
+	    camera.captureRaw(_image.data());
+
+	    constexpr auto	N = iterator_value<
+					pixel_iterator<const T*> >::npixels;
+	    const auto		npixels = image.width * image.height;
+	    std::copy_n(make_pixel_iterator(
+			    reinterpret_cast<const T*>(_image.data())),
+			npixels/N,
+			make_pixel_iterator(
+			    reinterpret_cast<RGB*>(image.data.data())));
+	}
+	else
+	{
+	    image.encoding = encoding;
+	    image.step	   = image.width
+			   *  image_encodings::numChannels(image.encoding)
+			   * (image_encodings::bitDepth(image.encoding)/8);
+	    image.data.resize(image.step * image.height);
+	    camera.captureRaw(image.data.data());
+	}
+    }
+    else
+    {
+	image.encoding = encoding;
+	image.step     = image.width
+		       *  image_encodings::numChannels(image.encoding)
+		       * (image_encodings::bitDepth(image.encoding)/8);
+	image.data.resize(image.step * image.height);
+	camera.captureRaw(image.data.data());
+	fix_yuyv<T>(image.data.data(), image.data.data() + image.data.size());
+    }
+
+    pub.publish(image);
+}
+    
 template <class CAMERAS> void
-CameraArrayNode<CAMERAS>::publish_cinfo(const image_t&  image,
+CameraArrayNode<CAMERAS>::publish_cinfo(const camera_t& camera,
+					const header_t& header,
 					const cmodel_t& cmodel,
 					const ros::Publisher& cinfo_pub) const
 {
     cinfo_t	cinfo;
-    cinfo.header.stamp		= image.header.stamp;
-    cinfo.header.frame_id	= image.header.frame_id;
-    cinfo.height		= image.height;
-    cinfo.width			= image.width;
-    cinfo.distortion_model	= "plumb_bob";
+    cinfo.header	   = header;
+    cinfo.height	   = camera.height();
+    cinfo.width		   = camera.width();
+    cinfo.distortion_model = "plumb_bob";
 
     cinfo.D.resize(4);
     cinfo.D[0] = cmodel.d1();
