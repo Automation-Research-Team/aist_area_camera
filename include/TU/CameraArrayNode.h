@@ -150,7 +150,7 @@ CameraArrayNode<CAMERAS>::CameraArrayNode()
 	edit_method << "{\'value\': "  << _cameras.size() << ", "
 		    <<  "\'name\': \'all\'}]}";
 	_reconf_server.addParam(ReconfServer::DEFAULT_GROUP, SELECT_CAMERA,
-				"select_camera", "select_camera",
+				"select_camera", "Select camera to be controlled.",
 				edit_method.str(),
 				0, int(_cameras.size()), int(_n));
     }

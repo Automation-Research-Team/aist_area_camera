@@ -35,8 +35,8 @@ CameraArrayNode<V4L2CameraArray>::add_parameters()
 	    if (idx != 0)
 		edit_method << ", ";
 
-	    edit_method << "{\'value\': "  << idx<< ", "
-			<<  "\'name\': \'" << frameSize
+	    edit_method << "{\'value\': "   << idx
+			<< ", \'name\': \'" << frameSize
 			<< "\'}";
 
 	    if (camera.pixelFormat() == pixelFormat	 &&
@@ -49,8 +49,8 @@ CameraArrayNode<V4L2CameraArray>::add_parameters()
 	edit_method << "]}";
 	
 	_reconf_server.addParam(parent, pixelFormat,
-				"Frame Size", "Frame Size",
-				edit_method.str(), 0, idx - 1, current);
+				"Frame Size", "Select frame size.",
+				edit_method.str(), 0, idx-1, current);
     }
 
   // Add feature commands.
@@ -86,8 +86,9 @@ CameraArrayNode<V4L2CameraArray>::add_parameters()
 		else
 		    edit_method << ", ";
 
-		edit_method << "{\'value\': "  << menuItem.index << ", "
-			    <<  "\'name\': \'" << menuItem.name  << "\'}";
+		edit_method << "{\'value\': "   << menuItem.index
+			    << ", \'name\': \'" << menuItem.name
+			    << "\'}";
 	    }
 	    edit_method << "]}";
 
