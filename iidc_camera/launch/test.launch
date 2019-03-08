@@ -1,0 +1,17 @@
+<launch>
+  <arg name="camera_name"	default="IIDCCamera"/>
+  <arg name="max_skew"		default="0"/>
+  <arg name="convert_to_rgb"	default="false"/>
+  <node name="$(arg camera_name)"
+  	pkg="iidc_camera" type="iidc_camera" output="screen">
+    <param name="max_skew"		value="$(arg max_skew)"/>
+    <param name="convert_to_rgb"	value="$(arg convert_to_rgb)"/>
+  </node>
+
+  <node name="image_view"
+	pkg = "image_view" type="image_view" output="screen">
+    <remap from="/image"	to="/$(arg camera_name)/camera0/image"/>>
+  </node>
+
+  <node name="rqt_reconfigure" pkg="rqt_reconfigure" type="rqt_reconfigure"/>
+</launch>
