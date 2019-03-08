@@ -158,18 +158,23 @@ CameraArrayNode<IIDCCameraArray>::add_parameters()
 	if (inq & IIDCCamera::Auto)
 	    if (feature == IIDCCamera::TRIGGER_MODE)
 		_reconf_server.addParam(parent, feature + IIDCCAMERA_OFFSET_AUTO,
-					"(+)", "Trigger polarity is Positive.", "",
-					false, true, camera.getTriggerPolarity());
+					"(+)",
+					"Trigger polarity is Positive.", "",
+					false, true,
+					camera.getTriggerPolarity());
 	    else
 		_reconf_server.addParam(parent, feature + IIDCCAMERA_OFFSET_AUTO,
-					"Auto", "Feature value is set automatically.",
-					"", false, true, camera.isAuto(feature));
+					"Auto",
+					"Feature value is set automatically.",
+					"",
+					false, true, camera.isAuto(feature));
 
 	if (inq & IIDCCamera::Abs_Control)
 	    _reconf_server.addParam(parent, feature + IIDCCAMERA_OFFSET_ABS,
 				    "Abs",
-				    "Feature value is specified as an absolute one.",
-				    "", false, true, camera.isAbsControl(feature));
+				    "Feature value is specified with an absolute one.",
+				    "",
+				    false, true, camera.isAbsControl(feature));
     }
 }
 
