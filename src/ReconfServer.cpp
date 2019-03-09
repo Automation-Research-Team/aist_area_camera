@@ -23,7 +23,8 @@ ReconfServer::ReconfServer(const ros::NodeHandle& nh)
 int32_t
 ReconfServer::addGroup(int32_t parent, const std::string& name, bool state)
 {
-    _groups.emplace_back(name, "", parent, _groups.size(), state);
+    _groups.emplace_back(canonicalName(name), "",
+			 parent, _groups.size(), state);
     return _groups.size() - 1;
 }
 
@@ -207,6 +208,28 @@ ReconfServer::reconfCallback(dynamic_reconfigure::Reconfigure::Request&  req,
     return true;
 }
 
+std::string
+ReconfServer::dirName(int32_t id) const
+{
+    if (id == 0)
+	return std::string();
+    else
+    {
+	const auto	group = std::find_if(_groups.begin(), _groups.end(),
+					     [id](const auto& group)
+					     { return group.id == id; });
+	if (group == _groups.end())
+	    throw std::runtime_error(
+			"ReconfServer::findGroup(): no groups with id=" +
+			std::to_string(id) + ".");
+
+	return dirName(group->parent) + group->name + '/';
+    }
+}
+    
+/************************************************************************
+*  I/O functions							*
+************************************************************************/
 std::ostream&
 operator <<(std::ostream& out, const ReconfServer::Param& param)
 {

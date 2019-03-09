@@ -259,21 +259,17 @@ class ReconfServer
 			 const std::string& edit_method,
 			 const T& min, const T& max, const T& dflt)
 		{
-		    const auto	group = std::find_if(
-					    _groups.begin(), _groups.end(),
-					    [parent](const auto& group)
-					    { return group.id == parent; });
-		    		    
-		    if (group == _groups.end())
-			throw std::runtime_error("ReconfServer::addParam(): a group with id="
-						 + std::to_string(parent)
-						 + "is not found!");
-		    
 		    _params.emplace_back(new ConcreteParam<T>(
+					     dirName(parent) +
 					     canonicalName(name),
 					     type_name<T>(),
 					     level, description, edit_method,
 					     min, max, dflt, dflt));
+
+		    const auto	group = std::find_if(
+					    _groups.begin(), _groups.end(),
+					    [parent](const auto& group)
+					    { return group.id == parent; });
 		    group->parameters.emplace_back(*_params.back());
 		}
 
@@ -291,6 +287,7 @@ class ReconfServer
     bool	reconfCallback(
 		    dynamic_reconfigure::Reconfigure::Request&  req,
 		    dynamic_reconfigure::Reconfigure::Response& rsp)	;
+    std::string	dirName(int32_t id)				const	;
 
   public:
     constexpr static uint32_t	DEFAULT_GROUP = 0;
