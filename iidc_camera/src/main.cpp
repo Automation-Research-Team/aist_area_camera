@@ -6,6 +6,8 @@
 
 namespace TU
 {
+constexpr static u_int	OFFSET_ABS_VAL = 0x2;
+    
 /************************************************************************
 *  class CameraArrayNode<IIDCCameraArray>				*
 ************************************************************************/
@@ -18,33 +20,21 @@ CameraArrayNode<IIDCCameraArray>::add_parameters()
     for (const auto& formatName : IIDCCamera::formatNames)
     {
 	const auto	inq = camera.inquireFrameRate(formatName.format);
-	std::ostringstream
-			edit_method;
-	bool		init = true;
-	
-	edit_method << "{\'enum\': [";
+
+	ReconfServer::Enums	enums;
 	for (const auto& frameRateName : IIDCCamera::frameRateNames)
 	    if (inq & frameRateName.frameRate)
-	    {
-		if (init)
-		    init = false;
-		else
-		    edit_method << ", ";
+		enums.add(frameRateName.name, frameRateName.frameRate);
+	enums.end();
 
-		edit_method << "{\'value\': "   << frameRateName.frameRate
-			    << ", \'name\': \'" << frameRateName.name
-			    << "\'}";
-	    }
-	edit_method << "]}";
-
-	if (!init)
+	if (!enums.empty())
 	{
 	    const auto	parent = _reconf_server.addGroup(
 					ReconfServer::DEFAULT_GROUP,
-					formatName.name, true);
+					formatName.name, true, true);
 	    _reconf_server.addParam<int>(parent, formatName.format,
 					 "Frame Rate", "Select frame rate.",
-					 edit_method.str(),
+					 enums.str(),
 					 IIDCCamera::FrameRate_x,
 					 IIDCCamera::FrameRate_1_875,
 					 camera.getFrameRate());
@@ -65,33 +55,21 @@ CameraArrayNode<IIDCCameraArray>::add_parameters()
 
 	const auto	parent = _reconf_server.addGroup(
 					ReconfServer::DEFAULT_GROUP,
-					name, true);
+					name, true, true);
 	switch (feature)
 	{
 	  case IIDCCamera::TRIGGER_MODE:
 	  {
-	    std::ostringstream	edit_method;
-	    bool		init = true;
-	      
-	    edit_method << "{\'enum\': [";
+	    ReconfServer::Enums  enums;
 	    for (const auto& triggerModeName : IIDCCamera::triggerModeNames)
 		if (inq & triggerModeName.triggerMode)
-		{
-		    if (init)
-			init = false;
-		    else
-			edit_method << ", ";
-
-		    edit_method << "{\'value\': "
-				<< triggerModeName.triggerMode
-				<<  ", \'name\': \'" << triggerModeName.name
-				<< "\'}";
-		}
-	    edit_method << "]}";
+		    enums.add(triggerModeName.name,
+			      triggerModeName.triggerMode);
+	    enums.end();
 
 	    _reconf_server.addParam<int>(parent, feature,
 					 "Value", "Select trigger mode.",
-					 edit_method.str(),
+					 enums.str(),
 					 IIDCCamera::Trigger_Mode15,
 					 IIDCCamera::Trigger_Mode0,
 					 camera.getTriggerMode());
@@ -120,12 +98,14 @@ CameraArrayNode<IIDCCameraArray>::add_parameters()
 		float	ub, vr;
 		camera.getWhiteBalance(ub, vr);
 
-		_reconf_server.addParam<double>(parent, feature,
+		_reconf_server.addParam<double>(parent,
+						feature + OFFSET_ABS_VAL,
 						"Abs U/B",
 						"White bal.(U/V)", "",
 						min, max, ub);
 		_reconf_server.addParam<double>(parent,
-						feature + IIDCCAMERA_OFFSET_VR,
+						feature + IIDCCAMERA_OFFSET_VR
+							+ OFFSET_ABS_VAL,
 						"Abs V/R",
 						"White bal.(V/R)", "",
 						min, max, vr);
@@ -146,9 +126,9 @@ CameraArrayNode<IIDCCameraArray>::add_parameters()
 		float	min, max;
 		camera.getMinMax(feature, min, max);
 		_reconf_server.addParam<double>(
-		    parent, feature, "Abs_Value", name, "",
-		    min, max,
-		    camera.getValue<float>(feature));
+				parent, feature + OFFSET_ABS_VAL,
+				"Abs_Value", name, "",
+				min, max, camera.getValue<float>(feature));
 	    }
 	  }
 	    break;
@@ -206,12 +186,20 @@ CameraArrayNode<IIDCCameraArray>::set_feature(
 	break;
 	
       default:
+      {
+	const auto	level = (param.type_info() == typeid(double) ?
+				 param.level - OFFSET_ABS_VAL : param.level);
+	u_int		val;
+	float		fval;
+	TU::getFeature(camera, level, val, fval);
+
 	if (param.type_info() == typeid(bool))
-	    TU::setFeature(camera, param.level, param.value<bool>(), 0);
+	    TU::setFeature(camera, level, param.value<bool>(), fval);
 	else if (param.type_info() == typeid(int))
-	    TU::setFeature(camera, param.level, param.value<int>(), 0);
+	    TU::setFeature(camera, level, param.value<int>(), fval);
 	else if (param.type_info() == typeid(double))
-	    TU::setFeature(camera, param.level, 0, param.value<double>());
+	    TU::setFeature(camera, level, val, param.value<double>());
+      }
 	break;
     }
 }
@@ -237,9 +225,11 @@ CameraArrayNode<IIDCCameraArray>::get_feature(
 	
       default:
       {
-	u_int	val;
-	float	fval;
-	TU::getFeature(camera, param.level, val, fval);
+	const auto	level = (param.type_info() == typeid(double) ?
+				 param.level - OFFSET_ABS_VAL : param.level);
+	u_int		val;
+	float		fval;
+	TU::getFeature(camera, level, val, fval);
 	  
 	if (param.type_info() == typeid(bool))
 	    param.setValue(bool(val));

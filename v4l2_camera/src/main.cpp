@@ -20,24 +20,18 @@ CameraArrayNode<V4L2CameraArray>::add_parameters()
     
     BOOST_FOREACH (auto pixelFormat, pixelFormats)
     {
-	const auto		parent = _reconf_server.addGroup(
-						ReconfServer::DEFAULT_GROUP,
-						camera.getName(pixelFormat),
-						false);
-	std::ostringstream	edit_method;
-	int			idx = 0;
+	const auto	parent = _reconf_server.addGroup(
+					ReconfServer::DEFAULT_GROUP,
+					camera.getName(pixelFormat),
+					true, true);
+
+	ReconfServer::Enums	enums;
+	int			idx     = 0;
 	int			current = 0;
-	
-	edit_method << "{\'enum\': [";
 	BOOST_FOREACH (const auto& frameSize,
 		       camera.availableFrameSizes(pixelFormat))
 	{
-	    if (idx != 0)
-		edit_method << ", ";
-
-	    edit_method << "{\'value\': "   << idx
-			<< ", \'name\': \'" << frameSize
-			<< "\'}";
+	    enums.add(frameSize, idx);
 
 	    if (camera.pixelFormat() == pixelFormat	 &&
 		frameSize.width.involves(camera.width()) &&
@@ -46,11 +40,11 @@ CameraArrayNode<V4L2CameraArray>::add_parameters()
 
 	    ++idx;
 	}
-	edit_method << "]}";
+	enums.end();
 	
-	_reconf_server.addParam(parent, pixelFormat,
-				"Frame Size", "Select frame size.",
-				edit_method.str(), 0, idx-1, current);
+	_reconf_server.addParam<int>(parent, pixelFormat,
+				     "Frame Size", "Select frame size.",
+				     enums.str(), 0, idx-1, current);
     }
 
   // Add feature commands.
@@ -65,38 +59,30 @@ CameraArrayNode<V4L2CameraArray>::add_parameters()
 	    camera.getMinMaxStep(feature, min, max, step);
 
 	    if (min == 0 && max == 1)	// toglle button
-		_reconf_server.addParam(ReconfServer::DEFAULT_GROUP, feature,
-					name, name, "", false, true,
-					bool(camera.getValue(feature)));
+		_reconf_server.addParam<bool>(ReconfServer::DEFAULT_GROUP,
+					      feature,
+					      name, name, "", false, true,
+					      camera.getValue(feature));
 	    else			// slider
-		_reconf_server.addParam(ReconfServer::DEFAULT_GROUP, feature,
-					name, name, "", min, max,
-					camera.getValue(feature));
+		_reconf_server.addParam<int>(ReconfServer::DEFAULT_GROUP,
+					     feature,
+					     name, name, "", min, max,
+					     camera.getValue(feature));
 	}
 	else				// menu button
 	{
-	    std::ostringstream	edit_method;
-	    bool		init = true;
-	    
-	    edit_method << "{\'enum\': [";
+	    ReconfServer::Enums	enums;
 	    BOOST_FOREACH (const auto& menuItem, menuItems)
 	    {
-		if (init)
-		    init = false;
-		else
-		    edit_method << ", ";
-
-		edit_method << "{\'value\': "   << menuItem.index
-			    << ", \'name\': \'" << menuItem.name
-			    << "\'}";
+		enums.add(menuItem.name, menuItem.index);
 	    }
-	    edit_method << "]}";
+	    enums.end();
 
-	    _reconf_server.addParam(ReconfServer::DEFAULT_GROUP, feature,
-				    name, name, edit_method.str(),
-				    menuItems.first->index,
-				    (menuItems.second - 1)->index,
-				    camera.getValue(feature));
+	    _reconf_server.addParam<int>(ReconfServer::DEFAULT_GROUP, feature,
+					 name, name, enums.str(),
+					 menuItems.first->index,
+					 (menuItems.second - 1)->index,
+					 camera.getValue(feature));
 	}
     }
 }

@@ -11,6 +11,7 @@
 #include <boost/function.hpp>
 #include <boost/any.hpp>
 #include <mutex>
+#include <sstream>
 #include <cctype>
 
 namespace TU
@@ -39,6 +40,32 @@ class ReconfServer
     using ConfigDescription	= dynamic_reconfigure::ConfigDescription;
     using ConfigTools		= dynamic_reconfigure::ConfigTools;
     using Any			= boost::any;
+
+    class Enums
+    {
+      public:
+			Enums()	:_empty(true)	{ _s <<  "{\'enum\': ["; }
+	
+	template <class NAME, class T>
+	void		add(const NAME& name, const T& val)
+			{
+			    if (_empty)
+				_empty = false;
+			    else
+				_s << ", ";
+
+			    _s << "{\'value\': "   << val
+			       << ", \'name\': \'" << name
+			       << "\'}";
+			}
+	void		end()			{ _s << "]}"; }
+	std::string	str()		const	{ return _s.str(); }
+	bool		empty()		const	{ return _empty; }
+
+      private:
+	std::ostringstream	_s;
+	bool			_empty;
+    };
     
     class Param : public dynamic_reconfigure::ParamDescription
     {
@@ -218,9 +245,8 @@ class ReconfServer
 		    parent = parent_;
 		    id	   = id_;
 
-		    ROS_INFO_STREAM("GroupDescription["
-				    << name << "]: type="
-				    << type << ",id=" << id);
+		    ROS_INFO_STREAM("Group[" << name
+				    << "]: type=" << type << ",id=" << id);
 		}
 	
 	bool	fromMessage(const Config& config)
@@ -249,8 +275,8 @@ class ReconfServer
   public:
 		ReconfServer(const ros::NodeHandle& nh)			;
 
-    int32_t	addGroup(int32_t parent,
-			 const std::string& name, bool state)		;
+    int32_t	addGroup(int32_t parent, const std::string& name,
+			 bool collapse, bool state)			;
 
     template <class T>
     void	addParam(int32_t parent, uint32_t level,

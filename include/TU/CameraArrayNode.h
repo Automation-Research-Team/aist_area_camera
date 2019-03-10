@@ -140,19 +140,16 @@ CameraArrayNode<CAMERAS>::CameraArrayNode()
   // Setup dynamic reconfigure
     if (_cameras.size() > 1)
     {
-	std::ostringstream	edit_method;
-	edit_method << "{\'enum\': [";
+	ReconfServer::Enums	enums;
 	for (size_t i = 0; i < _cameras.size(); ++i)
-	{
-	    edit_method << "{\'value\': "  << i << ", "
-			<<  "\'name\': \'camera" << i << "\'}, ";
-	}
-	edit_method << "{\'value\': "  << _cameras.size() << ", "
-		    <<  "\'name\': \'all\'}]}";
-	_reconf_server.addParam(ReconfServer::DEFAULT_GROUP, SELECT_CAMERA,
-				"select_camera", "Select camera to be controlled.",
-				edit_method.str(),
-				0, int(_cameras.size()), int(_n));
+	    enums.add("camera" + std::to_string(i), i);
+	enums.add("all", _cameras.size());
+	enums.end();
+	_reconf_server.addParam<int>(ReconfServer::DEFAULT_GROUP,
+				     SELECT_CAMERA,
+				     "select_camera",
+				     "Select camera to be controlled.",
+				     enums.str(), 0, _cameras.size(), _n);
     }
     add_parameters();
     _reconf_server.setCallback(boost::bind(&reconf_callback, this, _1, _2));

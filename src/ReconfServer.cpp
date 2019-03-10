@@ -17,13 +17,14 @@ ReconfServer::ReconfServer(const ros::NodeHandle& nh)
 	 _nh.advertise<ConfigDescription>("parameter_descriptions", 1, true)),
      _parameter_update_pub(_nh.advertise<Config>("parameter_updates", 1, true))
 {
-    addGroup(DEFAULT_GROUP, "default", true);
+    addGroup(DEFAULT_GROUP, "default", false, true);
 }
     
 int32_t
-ReconfServer::addGroup(int32_t parent, const std::string& name, bool state)
+ReconfServer::addGroup(int32_t parent, const std::string& name,
+		       bool collapse, bool state)
 {
-    _groups.emplace_back(canonicalName(name), "",
+    _groups.emplace_back(canonicalName(name), (collapse ? "collapse" : ""),
 			 parent, _groups.size(), state);
     return _groups.size() - 1;
 }
@@ -189,10 +190,8 @@ ReconfServer::reconfCallback(dynamic_reconfigure::Reconfigure::Request&  req,
 	_callback(_params, params);
 
 	toServer();
-			
-	Config	config;
-	toMessage(config);			// config <== _params
-	_parameter_update_pub.publish(config);	// publish config
+	toMessage(rsp.config);				// config <== _params
+	_parameter_update_pub.publish(rsp.config);	// publish config
     }
     catch (const std::exception& err)
     {
@@ -202,8 +201,6 @@ ReconfServer::reconfCallback(dynamic_reconfigure::Reconfigure::Request&  req,
     {
 	ROS_WARN_STREAM("ReconfServer::reconfCallback(): unknown exception.");
     }
-
-    toMessage(rsp.config);		// rsp.config <== _params
 		    
     return true;
 }
