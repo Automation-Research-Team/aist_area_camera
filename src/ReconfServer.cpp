@@ -17,12 +17,12 @@ ReconfServer::ReconfServer(const ros::NodeHandle& nh)
 	 _nh.advertise<ConfigDescription>("parameter_descriptions", 1, true)),
      _parameter_update_pub(_nh.advertise<Config>("parameter_updates", 1, true))
 {
-    addGroup(DEFAULT_GROUP, "default", false, true);
+    addGroup("default", false);
 }
     
 int32_t
-ReconfServer::addGroup(int32_t parent, const std::string& name,
-		       bool collapse, bool state)
+ReconfServer::addGroup(const std::string& name,
+		       bool collapse, bool state, int32_t parent)
 {
     _groups.emplace_back(canonicalName(name), (collapse ? "collapse" : ""),
 			 parent, _groups.size(), state);

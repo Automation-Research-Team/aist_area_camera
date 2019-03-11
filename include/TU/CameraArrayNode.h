@@ -145,8 +145,7 @@ CameraArrayNode<CAMERAS>::CameraArrayNode()
 	    enums.add("camera" + std::to_string(i), i);
 	enums.add("all", _cameras.size());
 	enums.end();
-	_reconf_server.addParam<int>(ReconfServer::DEFAULT_GROUP,
-				     SELECT_CAMERA,
+	_reconf_server.addParam<int>(SELECT_CAMERA,
 				     "select_camera",
 				     "Select camera to be controlled.",
 				     enums.str(), 0, _cameras.size(), _n);

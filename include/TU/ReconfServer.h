@@ -36,6 +36,9 @@ inline std::string	type_name<std::string>()	{ return "string"; }
 class ReconfServer
 {
   public:
+    constexpr static uint32_t	ROOT = 0;
+    
+  public:
     using Config		= dynamic_reconfigure::Config;
     using ConfigDescription	= dynamic_reconfigure::ConfigDescription;
     using ConfigTools		= dynamic_reconfigure::ConfigTools;
@@ -275,15 +278,16 @@ class ReconfServer
   public:
 		ReconfServer(const ros::NodeHandle& nh)			;
 
-    int32_t	addGroup(int32_t parent, const std::string& name,
-			 bool collapse, bool state)			;
+    int32_t	addGroup(const std::string& name, bool collapse=true,
+			 bool state=true, int32_t parent=ROOT)		;
 
     template <class T>
-    void	addParam(int32_t parent, uint32_t level,
+    void	addParam(uint32_t level,
 			 const std::string& name,
 			 const std::string& description,
 			 const std::string& edit_method,
-			 const T& min, const T& max, const T& dflt)
+			 const T& min, const T& max, const T& dflt,
+			 int32_t parent=ROOT)
 		{
 		    _params.emplace_back(new ConcreteParam<T>(
 					     dirName(parent) +
@@ -315,9 +319,6 @@ class ReconfServer
 		    dynamic_reconfigure::Reconfigure::Response& rsp)	;
     std::string	dirName(int32_t id)				const	;
 
-  public:
-    constexpr static uint32_t	DEFAULT_GROUP = 0;
-    
   private:
     ros::NodeHandle		_nh;
     const ros::ServiceServer	_set_parameters_srv;

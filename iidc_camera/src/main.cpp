@@ -29,15 +29,13 @@ CameraArrayNode<IIDCCameraArray>::add_parameters()
 
 	if (!enums.empty())
 	{
-	    const auto	parent = _reconf_server.addGroup(
-					ReconfServer::DEFAULT_GROUP,
-					formatName.name, true, true);
-	    _reconf_server.addParam<int>(parent, formatName.format,
+	    const auto	parent = _reconf_server.addGroup(formatName.name);
+	    _reconf_server.addParam<int>(formatName.format,
 					 "Frame Rate", "Select frame rate.",
 					 enums.str(),
 					 IIDCCamera::FrameRate_x,
 					 IIDCCamera::FrameRate_1_875,
-					 camera.getFrameRate());
+					 camera.getFrameRate(), parent);
 	}
     }
 
@@ -53,9 +51,7 @@ CameraArrayNode<IIDCCameraArray>::add_parameters()
 	      (inq & IIDCCamera::ReadOut)))
 	    continue;
 
-	const auto	parent = _reconf_server.addGroup(
-					ReconfServer::DEFAULT_GROUP,
-					name, true, true);
+	const auto	parent = _reconf_server.addGroup(name);
 	switch (feature)
 	{
 	  case IIDCCamera::TRIGGER_MODE:
@@ -67,12 +63,12 @@ CameraArrayNode<IIDCCameraArray>::add_parameters()
 			      triggerModeName.triggerMode);
 	    enums.end();
 
-	    _reconf_server.addParam<int>(parent, feature,
+	    _reconf_server.addParam<int>(feature,
 					 "Value", "Select trigger mode.",
 					 enums.str(),
 					 IIDCCamera::Trigger_Mode15,
 					 IIDCCamera::Trigger_Mode0,
-					 camera.getTriggerMode());
+					 camera.getTriggerMode(), parent);
 	  }
 	    break;
 
@@ -83,13 +79,12 @@ CameraArrayNode<IIDCCameraArray>::add_parameters()
 	    u_int	ub, vr;
 	    camera.getWhiteBalance(ub, vr);
 		
-	    _reconf_server.addParam<int>(parent, feature,
+	    _reconf_server.addParam<int>(feature,
 					 "U/B", "White bal.(U/V)", "",
-					 min, max, ub);
-	    _reconf_server.addParam<int>(parent,
-					 feature + IIDCCAMERA_OFFSET_VR,
+					 min, max, ub, parent);
+	    _reconf_server.addParam<int>(feature + IIDCCAMERA_OFFSET_VR,
 					 "V/R", "White bal.(V/R)", "",
-					 min, max, vr);
+					 min, max, vr, parent);
 
 	    if (camera.isAbsControl(feature))
 	    {
@@ -98,17 +93,15 @@ CameraArrayNode<IIDCCameraArray>::add_parameters()
 		float	ub, vr;
 		camera.getWhiteBalance(ub, vr);
 
-		_reconf_server.addParam<double>(parent,
-						feature + OFFSET_ABS_VAL,
+		_reconf_server.addParam<double>(feature + OFFSET_ABS_VAL,
 						"Abs U/B",
 						"White bal.(U/V)", "",
-						min, max, ub);
-		_reconf_server.addParam<double>(parent,
-						feature + IIDCCAMERA_OFFSET_VR
+						min, max, ub, parent);
+		_reconf_server.addParam<double>(feature + IIDCCAMERA_OFFSET_VR
 							+ OFFSET_ABS_VAL,
 						"Abs V/R",
 						"White bal.(V/R)", "",
-						min, max, vr);
+						min, max, vr, parent);
 	    }
 	  }
 	    break;
@@ -117,53 +110,49 @@ CameraArrayNode<IIDCCameraArray>::add_parameters()
 	  {
 	    u_int	min, max;
 	    camera.getMinMax(feature, min, max);
-	    _reconf_server.addParam<int>(parent, feature,
-					 "Value", name, "", min, max,
-					 camera.getValue(feature));
+	    _reconf_server.addParam<int>(feature, "Value", name, "", min, max,
+					 camera.getValue(feature), parent);
 	    
 	    if (camera.isAbsControl(feature))
 	    {
 		float	min, max;
 		camera.getMinMax(feature, min, max);
 		_reconf_server.addParam<double>(
-				parent, feature + OFFSET_ABS_VAL,
-				"Abs_Value", name, "",
-				min, max, camera.getValue<float>(feature));
+					feature + OFFSET_ABS_VAL,
+					"Abs_Value", name, "", min, max,
+					camera.getValue<float>(feature),
+					parent);
 	    }
 	  }
 	    break;
 	}
 
 	if (inq & IIDCCamera::OnOff)
-	    _reconf_server.addParam(parent,
-				    feature + IIDCCAMERA_OFFSET_ONOFF,
-				    "On", "Feature is enabled.", "",
-				    false, true,
-				    camera.isActive(feature));
+	    _reconf_server.addParam(feature + IIDCCAMERA_OFFSET_ONOFF,
+				    "On", "Feature is enabled.",
+				    "", false, true,
+				    camera.isActive(feature), parent);
 
 	if (inq & IIDCCamera::Auto)
 	    if (feature == IIDCCamera::TRIGGER_MODE)
-		_reconf_server.addParam(parent,
-					feature + IIDCCAMERA_OFFSET_AUTO,
+		_reconf_server.addParam(feature + IIDCCAMERA_OFFSET_AUTO,
 					"Positive",
-					"Positive trigger polarity", "",
-					false, true,
-					camera.getTriggerPolarity());
+					"Positive trigger polarity",
+					"", false, true,
+					camera.getTriggerPolarity(), parent);
 	    else
-		_reconf_server.addParam(parent,
-					feature + IIDCCAMERA_OFFSET_AUTO,
+		_reconf_server.addParam(feature + IIDCCAMERA_OFFSET_AUTO,
 					"Auto",
 					"Feature value is set automatically.",
-					"",
-					false, true, camera.isAuto(feature));
+					"", false, true,
+					camera.isAuto(feature), parent);
 
 	if (inq & IIDCCamera::Abs_Control)
-	    _reconf_server.addParam(parent,
-				    feature + IIDCCAMERA_OFFSET_ABS,
+	    _reconf_server.addParam(feature + IIDCCAMERA_OFFSET_ABS,
 				    "Abs",
 				    "Feature value is specified in an absolute one.",
-				    "",
-				    false, true, camera.isAbsControl(feature));
+				    "", false, true,
+				    camera.isAbsControl(feature), parent);
     }
 }
 
@@ -171,22 +160,13 @@ template <> void
 CameraArrayNode<IIDCCameraArray>::set_feature(
     camera_t& camera, const ReconfServer::Param& param) const
 {
-    switch (param.level)
+    if (param.level >= IIDCCamera::YUV444_160x120 &&
+	param.level <= IIDCCamera::Format_7_7)
     {
-      case IIDCCamera::MONO_8:
-      case IIDCCamera::RAW_8:
-      case IIDCCamera::YUV_411:
-      case IIDCCamera::MONO_16:
-      case IIDCCamera::RAW_16:
-      case IIDCCamera::SIGNED_MONO_16:
-      case IIDCCamera::YUV_422:
-      case IIDCCamera::YUV_444:
-      case IIDCCamera::RGB_24:
 	TU::setFormat(camera, param.level, param.value<int>());
-	break;
-	
-      default:
-      {
+    }
+    else
+    {
 	const auto	level = (param.type_info() == typeid(double) ?
 				 param.level - OFFSET_ABS_VAL : param.level);
 	u_int		val;
@@ -199,8 +179,6 @@ CameraArrayNode<IIDCCameraArray>::set_feature(
 	    TU::setFeature(camera, level, param.value<int>(), fval);
 	else if (param.type_info() == typeid(double))
 	    TU::setFeature(camera, level, val, param.value<double>());
-      }
-	break;
     }
 }
     
@@ -208,23 +186,14 @@ template <> void
 CameraArrayNode<IIDCCameraArray>::get_feature(
     const camera_t& camera, ReconfServer::Param& param) const
 {
-    switch (param.level)
+    if (param.level >= IIDCCamera::YUV444_160x120 &&
+	param.level <= IIDCCamera::Format_7_7)
     {
-      case IIDCCamera::MONO_8:
-      case IIDCCamera::RAW_8:
-      case IIDCCamera::YUV_411:
-      case IIDCCamera::MONO_16:
-      case IIDCCamera::RAW_16:
-      case IIDCCamera::SIGNED_MONO_16:
-      case IIDCCamera::YUV_422:
-      case IIDCCamera::YUV_444:
-      case IIDCCamera::RGB_24:
-	if (camera.getFormat() == IIDCCamera::uintToFormat(param.level))
+	if (param.level == camera.getFormat())
 	    param.setValue(camera.getFrameRate());
-	break;
-	
-      default:
-      {
+    }
+    else
+    {
 	const auto	level = (param.type_info() == typeid(double) ?
 				 param.level - OFFSET_ABS_VAL : param.level);
 	u_int		val;
@@ -237,8 +206,6 @@ CameraArrayNode<IIDCCameraArray>::get_feature(
 	    param.setValue(int(val));
 	else if (param.type_info() == typeid(double))
 	    param.setValue(double(fval));
-      }
-	break;
     }
 }
     

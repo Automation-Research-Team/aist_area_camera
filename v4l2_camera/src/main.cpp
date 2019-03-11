@@ -21,9 +21,7 @@ CameraArrayNode<V4L2CameraArray>::add_parameters()
     BOOST_FOREACH (auto pixelFormat, pixelFormats)
     {
 	const auto	parent = _reconf_server.addGroup(
-					ReconfServer::DEFAULT_GROUP,
-					camera.getName(pixelFormat),
-					true, true);
+					camera.getName(pixelFormat));
 
 	ReconfServer::Enums	enums;
 	int			idx     = 0;
@@ -42,9 +40,9 @@ CameraArrayNode<V4L2CameraArray>::add_parameters()
 	}
 	enums.end();
 	
-	_reconf_server.addParam<int>(parent, pixelFormat,
+	_reconf_server.addParam<int>(pixelFormat,
 				     "Frame Size", "Select frame size.",
-				     enums.str(), 0, idx-1, current);
+				     enums.str(), 0, idx-1, current, parent);
     }
 
   // Add feature commands.
@@ -59,13 +57,11 @@ CameraArrayNode<V4L2CameraArray>::add_parameters()
 	    camera.getMinMaxStep(feature, min, max, step);
 
 	    if (min == 0 && max == 1)	// toglle button
-		_reconf_server.addParam<bool>(ReconfServer::DEFAULT_GROUP,
-					      feature,
+		_reconf_server.addParam<bool>(feature,
 					      name, name, "", false, true,
 					      camera.getValue(feature));
 	    else			// slider
-		_reconf_server.addParam<int>(ReconfServer::DEFAULT_GROUP,
-					     feature,
+		_reconf_server.addParam<int>(feature,
 					     name, name, "", min, max,
 					     camera.getValue(feature));
 	}
@@ -78,8 +74,7 @@ CameraArrayNode<V4L2CameraArray>::add_parameters()
 	    }
 	    enums.end();
 
-	    _reconf_server.addParam<int>(ReconfServer::DEFAULT_GROUP, feature,
-					 name, name, enums.str(),
+	    _reconf_server.addParam<int>(feature, name, name, enums.str(),
 					 menuItems.first->index,
 					 (menuItems.second - 1)->index,
 					 camera.getValue(feature));
