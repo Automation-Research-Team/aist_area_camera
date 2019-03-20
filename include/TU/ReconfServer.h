@@ -11,6 +11,7 @@
 #include <boost/function.hpp>
 #include <boost/any.hpp>
 #include <mutex>
+#include <limits>
 #include <sstream>
 #include <cctype>
 
@@ -47,7 +48,10 @@ class ReconfServer
     class Enums
     {
       public:
-			Enums()	:_empty(true)	{ _s <<  "{\'enum\': ["; }
+			Enums()	:_s(""), _empty(true)
+			{
+			    _s <<  "{\'enum\': [";
+			}
 	
 	template <class NAME, class T>
 	void		add(const NAME& name, const T& val)
@@ -73,15 +77,15 @@ class ReconfServer
     class Param : public dynamic_reconfigure::ParamDescription
     {
       public:
-			Param(const std::string& name_,
+			Param(uint32_t		 level_,
+			      const std::string& name_,
 			      const std::string& type_,
-			      uint32_t		 level_,
 			      const std::string& description_,
 			      const std::string& edit_method_)
 			{
+			    level	= level_;
 			    name	= name_;
 			    type	= type_;
-			    level	= level_;
 			    description	= description_;
 			    edit_method	= edit_method_;
 			}
@@ -117,14 +121,14 @@ class ReconfServer
     class ConcreteParam final : public Param
     {
       public:
-			ConcreteParam(const std::string& name_,
+			ConcreteParam(uint32_t		 level_,
+				      const std::string& name_,
 				      const std::string& type_,
-				      uint32_t		 level_,
 				      const std::string& description_,
 				      const std::string& edit_method_,
 				      const T& min,  const T& max,
 				      const T& dflt, const T& val)
-			    :Param(name_, type_, level_,
+			    :Param(level_, name_, type_,
 				   description_, edit_method_),
 			    _min(min), _max(max), _dflt(dflt), _val(val)
 			{
@@ -285,22 +289,33 @@ class ReconfServer
     void	addParam(uint32_t level,
 			 const std::string& name,
 			 const std::string& description,
-			 const std::string& edit_method,
-			 const T& min, const T& max, const T& dflt,
+			 const T& min, const T& max, const T& val,
 			 int32_t parent=ROOT)
 		{
-		    _params.emplace_back(new ConcreteParam<T>(
-					     dirName(parent) +
-					     canonicalName(name),
-					     type_name<T>(),
-					     level, description, edit_method,
-					     min, max, dflt, dflt));
+		    addParam(level, name, description, "",
+			     min, max, val, val, parent);
+		}
 
-		    const auto	group = std::find_if(
-					    _groups.begin(), _groups.end(),
-					    [parent](const auto& group)
-					    { return group.id == parent; });
-		    group->parameters.emplace_back(*_params.back());
+    void	addParam(uint32_t level,
+			 const std::string& name,
+			 const std::string& description,
+			 const Enums& enums, int32_t val,
+			 int32_t parent=ROOT)
+		{
+		    if (!enums.empty())
+			addParam(level, name, description, enums.str(),
+				 std::numeric_limits<int32_t>::min(),
+				 std::numeric_limits<int32_t>::max(),
+				 val, val, parent);
+		}
+
+    void	addParam(uint32_t level,
+			 const std::string& name,
+			 const std::string& description,
+			 bool val, int32_t parent=ROOT)
+		{
+		    addParam(level, name, description, "",
+			     false, true, val, val, parent);
 		}
 
     void	setCallback(const CallbackType& callback)		;
@@ -309,6 +324,29 @@ class ReconfServer
   private:
     static std::string
 		canonicalName(const std::string& name)			;
+    template <class T>
+    void	addParam(uint32_t level,
+			 const std::string& name,
+			 const std::string& description,
+			 const std::string& edit_method,
+			 const T& min,  const T& max,
+			 const T& dflt, const T& val,
+			 int32_t parent=ROOT)
+		{
+		    _params.emplace_back(new ConcreteParam<T>(
+					     level, 
+					     dirName(parent) +
+					     canonicalName(name),
+					     type_name<T>(),
+					     description, edit_method,
+					     min, max, dflt, val));
+
+		    const auto	group = std::find_if(
+					    _groups.begin(), _groups.end(),
+					    [parent](const auto& group)
+					    { return group.id == parent; });
+		    group->parameters.emplace_back(*_params.back());
+		}
     void	fromServer()					const	;
     void	toServer()					const	;
     bool	fromMessage(const Config& config)		const	;

@@ -38,6 +38,10 @@ ReconfServer::setCallback(const CallbackType& callback)
     toMessage(config_desc);  // Set and append to min/max/dflt values/groups.
     _parameter_descriptions_pub.publish(config_desc);
 
+    Config	config;
+    toMessage(config);				// config <== _params, _groups
+    _parameter_update_pub.publish(config);	// Publish rsp.config.
+
     toServer();
 
     _callback = callback;
@@ -57,6 +61,9 @@ ReconfServer::canonicalName(const std::string& name)
     auto	canonical_name = name;
     std::for_each(canonical_name.begin(), canonical_name.end(),
 		  [](auto&& c){ if (c != '/' && !isalnum(c)) c = '_'; });
+    if (canonical_name.size() > 0 && (isdigit(canonical_name.front()) ||
+				      canonical_name.front() == '_'))
+	canonical_name = "TU_" + canonical_name;
     return canonical_name;
 }
     
@@ -102,10 +109,10 @@ ReconfServer::fromMessage(const Config& config) const
     try
     {
 	for (const auto& param : _params)
-	    param->fromMessage(config);
+	    param->fromMessage(config);	// Restore value to param._val.
 
 	for (const auto& group : _groups)
-	    group.fromMessage(config);
+	    group.fromMessage(config);	// Restore group state to group.state.
     }
     catch (const std::exception& err)
     {
@@ -125,10 +132,10 @@ ReconfServer::toMessage(Config& config) const
 	ConfigTools::clear(config);
 
 	for (const auto& param : _params)
-	    param->toMessage(config);
+	    param->toMessage(config);	// Push param._val into config.<type>s.
 
 	for (const auto& group : _groups)
-	    group.toMessage(config);
+	    group.toMessage(config);	// Push group.state into config.groups.
     }
     catch (const std::exception& err)
     {
@@ -149,13 +156,15 @@ ReconfServer::toMessage(ConfigDescription& config_desc) const
 	ConfigTools::clear(config_desc.max);
 	ConfigTools::clear(config_desc.dflt);
 	config_desc.groups.clear();
-	
+
+      // Append param.[_min|_max|_dflt] to config_desc.[min|max|dlft].<types>s.
 	for (const auto& param : _params)
-	    param->toMessage(config_desc);  // Set min/max/dflt values.
+	    param->toMessage(config_desc);
 
 	for (const auto& group : _groups)
 	{
-	    group.toMessage(config_desc);  // Append to min/max/dflt groups.
+	  // Append group.state to config_desc.[min|max|dflt].groups.
+	    group.toMessage(config_desc);
 	    config_desc.groups.emplace_back(group);
 	}
     }
@@ -183,15 +192,15 @@ ReconfServer::reconfCallback(dynamic_reconfigure::Reconfigure::Request&  req,
     }
 		    
     const auto	params = _params;	// Keep original params.
-    fromMessage(req.config);		// req.config ==> _params
+    fromMessage(req.config);		// req.config ==> _params, _groups
 
     try
     {
 	_callback(_params, params);
 
 	toServer();
-	toMessage(rsp.config);				// config <== _params
-	_parameter_update_pub.publish(rsp.config);	// publish config
+	toMessage(rsp.config);		// rsp.config <== _params, _groups
+	_parameter_update_pub.publish(rsp.config);	// Publish rsp.config.
     }
     catch (const std::exception& err)
     {
@@ -237,7 +246,7 @@ operator <<(std::ostream& out, const ReconfServer::Param& param)
     if (param.type_info() == typeid(bool))
 	out << param.value<bool>();
     else if (param.type_info() == typeid(int))
-	out << param.value<int>();
+	out << u_int(param.value<int>());
     else if (param.type_info() == typeid(double))
 	out << param.value<double>();
     else if (param.type_info() == typeid(std::string))

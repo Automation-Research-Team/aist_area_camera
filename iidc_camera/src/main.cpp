@@ -22,20 +22,24 @@ CameraArrayNode<IIDCCameraArray>::add_parameters()
 	const auto	inq = camera.inquireFrameRate(formatName.format);
 
 	ReconfServer::Enums	enums;
+	IIDCCamera::FrameRate	frameRate;
 	for (const auto& frameRateName : IIDCCamera::frameRateNames)
 	    if (inq & frameRateName.frameRate)
+	    {
 		enums.add(frameRateName.name, frameRateName.frameRate);
+		frameRate = frameRateName.frameRate;
+	    }
 	enums.end();
 
 	if (!enums.empty())
 	{
+	    if (formatName.format == camera.getFormat())
+		frameRate = camera.getFrameRate();
+	    
 	    const auto	parent = _reconf_server.addGroup(formatName.name);
-	    _reconf_server.addParam<int>(formatName.format,
-					 "Frame Rate", "Select frame rate.",
-					 enums.str(),
-					 IIDCCamera::FrameRate_x,
-					 IIDCCamera::FrameRate_1_875,
-					 camera.getFrameRate(), parent);
+	    _reconf_server.addParam(formatName.format,
+				    "Frame Rate", "Select frame rate.", enums,
+				    frameRate, parent);
 	}
     }
 
@@ -51,7 +55,7 @@ CameraArrayNode<IIDCCameraArray>::add_parameters()
 	      (inq & IIDCCamera::ReadOut)))
 	    continue;
 
-	const auto	parent = _reconf_server.addGroup(name);
+	const auto	parent = _reconf_server.addGroup(name, true, false);
 	switch (feature)
 	{
 	  case IIDCCamera::TRIGGER_MODE:
@@ -63,12 +67,9 @@ CameraArrayNode<IIDCCameraArray>::add_parameters()
 			      triggerModeName.triggerMode);
 	    enums.end();
 
-	    _reconf_server.addParam<int>(feature,
-					 "Value", "Select trigger mode.",
-					 enums.str(),
-					 IIDCCamera::Trigger_Mode15,
-					 IIDCCamera::Trigger_Mode0,
-					 camera.getTriggerMode(), parent);
+	    _reconf_server.addParam(feature,
+				    "Value", "Select trigger mode.", enums,
+				    camera.getTriggerMode(), parent);
 	  }
 	    break;
 
@@ -80,13 +81,13 @@ CameraArrayNode<IIDCCameraArray>::add_parameters()
 	    camera.getWhiteBalance(ub, vr);
 		
 	    _reconf_server.addParam<int>(feature,
-					 "U/B", "White bal.(U/V)", "",
+					 "U/B", "White bal.(U/V)",
 					 min, max, ub, parent);
 	    _reconf_server.addParam<int>(feature + IIDCCAMERA_OFFSET_VR,
-					 "V/R", "White bal.(V/R)", "",
+					 "V/R", "White bal.(V/R)",
 					 min, max, vr, parent);
 
-	    if (camera.isAbsControl(feature))
+	    if (inq & IIDCCamera::Abs_Control)
 	    {
 		float	min, max;
 		camera.getMinMax(feature, min, max);
@@ -94,13 +95,11 @@ CameraArrayNode<IIDCCameraArray>::add_parameters()
 		camera.getWhiteBalance(ub, vr);
 
 		_reconf_server.addParam<double>(feature + OFFSET_ABS_VAL,
-						"Abs U/B",
-						"White bal.(U/V)", "",
+						"Abs U/B", "White bal.(U/V)",
 						min, max, ub, parent);
 		_reconf_server.addParam<double>(feature + IIDCCAMERA_OFFSET_VR
 							+ OFFSET_ABS_VAL,
-						"Abs V/R",
-						"White bal.(V/R)", "",
+						"Abs V/R", "White bal.(V/R)",
 						min, max, vr, parent);
 	    }
 	  }
@@ -110,16 +109,16 @@ CameraArrayNode<IIDCCameraArray>::add_parameters()
 	  {
 	    u_int	min, max;
 	    camera.getMinMax(feature, min, max);
-	    _reconf_server.addParam<int>(feature, "Value", name, "", min, max,
+	    _reconf_server.addParam<int>(feature, "Value", name, min, max,
 					 camera.getValue(feature), parent);
 	    
-	    if (camera.isAbsControl(feature))
+	    if (inq & IIDCCamera::Abs_Control)
 	    {
 		float	min, max;
 		camera.getMinMax(feature, min, max);
 		_reconf_server.addParam<double>(
 					feature + OFFSET_ABS_VAL,
-					"Abs_Value", name, "", min, max,
+					"Abs_Value", name, min, max,
 					camera.getValue<float>(feature),
 					parent);
 	    }
@@ -130,7 +129,6 @@ CameraArrayNode<IIDCCameraArray>::add_parameters()
 	if (inq & IIDCCamera::OnOff)
 	    _reconf_server.addParam(feature + IIDCCAMERA_OFFSET_ONOFF,
 				    "On", "Feature is enabled.",
-				    "", false, true,
 				    camera.isActive(feature), parent);
 
 	if (inq & IIDCCamera::Auto)
@@ -138,20 +136,17 @@ CameraArrayNode<IIDCCameraArray>::add_parameters()
 		_reconf_server.addParam(feature + IIDCCAMERA_OFFSET_AUTO,
 					"Positive",
 					"Positive trigger polarity",
-					"", false, true,
 					camera.getTriggerPolarity(), parent);
 	    else
 		_reconf_server.addParam(feature + IIDCCAMERA_OFFSET_AUTO,
 					"Auto",
 					"Feature value is set automatically.",
-					"", false, true,
 					camera.isAuto(feature), parent);
 
 	if (inq & IIDCCamera::Abs_Control)
 	    _reconf_server.addParam(feature + IIDCCAMERA_OFFSET_ABS,
 				    "Abs",
 				    "Feature value is specified in an absolute one.",
-				    "", false, true,
 				    camera.isAbsControl(feature), parent);
     }
 }

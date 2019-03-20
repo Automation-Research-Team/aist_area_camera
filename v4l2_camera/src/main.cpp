@@ -40,9 +40,8 @@ CameraArrayNode<V4L2CameraArray>::add_parameters()
 	}
 	enums.end();
 	
-	_reconf_server.addParam<int>(pixelFormat,
-				     "Frame Size", "Select frame size.",
-				     enums.str(), 0, idx-1, current, parent);
+	_reconf_server.addParam(pixelFormat, "Frame Size", "Select frame size.",
+				enums, current, parent);
     }
 
   // Add feature commands.
@@ -57,12 +56,10 @@ CameraArrayNode<V4L2CameraArray>::add_parameters()
 	    camera.getMinMaxStep(feature, min, max, step);
 
 	    if (min == 0 && max == 1)	// toglle button
-		_reconf_server.addParam<bool>(feature,
-					      name, name, "", false, true,
-					      camera.getValue(feature));
+		_reconf_server.addParam(feature, name, name,
+					camera.getValue(feature));
 	    else			// slider
-		_reconf_server.addParam<int>(feature,
-					     name, name, "", min, max,
+		_reconf_server.addParam<int>(feature, name, name, min, max,
 					     camera.getValue(feature));
 	}
 	else				// menu button
@@ -74,10 +71,8 @@ CameraArrayNode<V4L2CameraArray>::add_parameters()
 	    }
 	    enums.end();
 
-	    _reconf_server.addParam<int>(feature, name, name, enums.str(),
-					 menuItems.first->index,
-					 (menuItems.second - 1)->index,
-					 camera.getValue(feature));
+	    _reconf_server.addParam(feature, name, name, enums,
+				    camera.getValue(feature));
 	}
     }
 }

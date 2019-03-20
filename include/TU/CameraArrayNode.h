@@ -145,10 +145,10 @@ CameraArrayNode<CAMERAS>::CameraArrayNode()
 	    enums.add("camera" + std::to_string(i), i);
 	enums.add("all", _cameras.size());
 	enums.end();
-	_reconf_server.addParam<int>(SELECT_CAMERA,
-				     "select_camera",
-				     "Select camera to be controlled.",
-				     enums.str(), 0, _cameras.size(), _n);
+	_reconf_server.addParam(SELECT_CAMERA,
+				"select_camera",
+				"Select camera to be controlled.",
+				enums, _n);
     }
     add_parameters();
     _reconf_server.setCallback(boost::bind(&reconf_callback, this, _1, _2));
