@@ -7,6 +7,7 @@
 #include <fstream>
 #include <chrono>
 #include <ros/ros.h>
+#include <nodelet/nodelet.h>
 #include <image_transport/image_transport.h>
 #include <sensor_msgs/image_encodings.h>
 #include "TU/Camera++.h"
@@ -22,16 +23,16 @@ template <class T> static void
 fix_yuyv(void* begin, void* end)
 {
 }
-    
+
 template <> void
 fix_yuyv<YUYV422>(void* begin, void* end)
 {
     std::copy(static_cast<const YUYV422*>(begin),
 	      static_cast<const YUYV422*>(end), static_cast<YUV422*>(begin));
 }
-    
+
 /************************************************************************
-*  class CameraArray<CAMERAS>						*
+*  class CameraArrayNode<CAMERAS>					*
 ************************************************************************/
 template <class CAMERAS>
 class CameraArrayNode
@@ -45,7 +46,7 @@ class CameraArrayNode
 				IntrinsicBase<double> > >;
 
     constexpr static int	SELECT_CAMERA	= 0;
-    
+
   public:
 		CameraArrayNode()					;
 
@@ -73,7 +74,7 @@ class CameraArrayNode
 			    const ReconfServer::Param& param)	const	;
     void	get_feature(const camera_t& camera,
 			    ReconfServer::Param& param)		const	;
-    
+
   private:
     ros::NodeHandle				_nh;
     CAMERAS					_cameras;
@@ -110,7 +111,7 @@ CameraArrayNode<CAMERAS>::CameraArrayNode()
 
   // Set whether converting color formats to RGB or not.
     _nh.param("convert_to_rgb", _convert_to_rgb, false);
-    
+
   // Create publishers.
     for (size_t i = 0; i < _cameras.size(); ++i)
     {
@@ -233,7 +234,7 @@ CameraArrayNode<CAMERAS>::reconf_callback(
 		get_feature(_cameras[_n], *new_param);
     }
 }
-    
+
 template <class CAMERAS> template <class T> void
 CameraArrayNode<CAMERAS>::publish_image(const camera_t& camera,
 					const header_t& header,
@@ -310,7 +311,7 @@ CameraArrayNode<CAMERAS>::publish_image(const camera_t& camera,
 
     pub.publish(image);
 }
-    
+
 template <class CAMERAS> void
 CameraArrayNode<CAMERAS>::publish_cinfo(const camera_t& camera,
 					const header_t& header,
@@ -343,5 +344,29 @@ CameraArrayNode<CAMERAS>::publish_cinfo(const camera_t& camera,
     cinfo_pub.publish(cinfo);
 }
 
+/************************************************************************
+*  class CameraArrayNodelet<CAMERAS>					*
+************************************************************************/
+template <class CAMERAS>
+class CameraArrayNodelet : public nodelet::Nodelet
+{
+  public:
+    CameraArrayNodelet()						{}
+
+    virtual void	onInit()					;
+
+  private:
+    ros::NodeHandle					_nh;
+    boost::shared_ptr<CameraArrayNode<CAMERAS> >	_impl;
+};
+
+template <class CAMERAS> void
+CameraArrayNodelet<CAMERAS>::onInit()
+{
+    _nh = getNodeHandle();
+    NODELET_INFO("CameraArrayNodeklet<CAMERAS>::onInit()");
+    _impl.reset(new CameraArrayNode<CAMERAS>());
 }
+
+}	// namespace TU
 #endif	// !TU_ROS_CAMERAARRAYNODE_H
