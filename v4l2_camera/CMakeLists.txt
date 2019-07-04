@@ -61,20 +61,20 @@ target_link_libraries(
 )
 
 add_library(
-  lib${PROJECT_NAME}
+  ${PROJECT_NAME}_nodelet
   src/nodelet.cpp
   src/V4L2CameraArrayNode.cpp
   ${PROJECT_SOURCE_DIR}/../src/ReconfServer.cpp
 )
 
 add_dependencies(
-  lib${PROJECT_NAME}
+  ${PROJECT_NAME}_nodelet
   ${${PROJECT_NAME}_EXPORTED_TARGETS}
   ${catkin_EXPORTED_TARGETS}
 )
 
 target_link_libraries(
-  lib${PROJECT_NAME}
+  ${PROJECT_NAME}_nodelet
   debug ${catkin_LIBRARIES}
   optimized ${catkin_LIBRARIES}
   ${Boost_LIBRARIES}

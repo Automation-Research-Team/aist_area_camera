@@ -14,6 +14,8 @@ find_package(catkin REQUIRED
     sensor_msgs
     dynamic_reconfigure
     tf
+    pluginlib
+    nodelet
 )
 
 include_directories(include
@@ -39,6 +41,7 @@ add_compile_options(-pthread)
 add_executable(
   ${PROJECT_NAME}
   src/main.cpp
+  src/IIDCCameraArrayNode.cpp
   ${PROJECT_SOURCE_DIR}/../src/ReconfServer.cpp
 )
 
@@ -50,6 +53,28 @@ add_dependencies(
 
 target_link_libraries(
   ${PROJECT_NAME}
+  debug ${catkin_LIBRARIES}
+  optimized ${catkin_LIBRARIES}
+  ${Boost_LIBRARIES}
+  ${TUIIDCPP_LIB}
+  ${TUTOOLSPP_LIB}
+)
+
+add_library(
+  ${PROJECT_NAME}_nodelet
+  src/nodelet.cpp
+  src/IIDCCameraArrayNode.cpp
+  ${PROJECT_SOURCE_DIR}/../src/ReconfServer.cpp
+)
+
+add_dependencies(
+  ${PROJECT_NAME}_nodelet
+  ${${PROJECT_NAME}_EXPORTED_TARGETS}
+  ${catkin_EXPORTED_TARGETS}
+)
+
+target_link_libraries(
+  ${PROJECT_NAME}_nodelet
   debug ${catkin_LIBRARIES}
   optimized ${catkin_LIBRARIES}
   ${Boost_LIBRARIES}
