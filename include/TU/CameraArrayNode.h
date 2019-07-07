@@ -41,9 +41,10 @@ class CameraArrayNode
     using camera_t = typename CAMERAS::value_type;
     using header_t = std_msgs::Header;
     using image_t  = sensor_msgs::Image;
+    using image_p  = sensor_msgs::ImagePtr;
     using cinfo_t  = sensor_msgs::CameraInfo;
     using cmodel_t = Camera<IntrinsicWithDistortion<
-				IntrinsicBase<double> > >;
+				 IntrinsicBase<double> > >;
 
     constexpr static int	SELECT_CAMERA	= 0;
 
@@ -51,9 +52,9 @@ class CameraArrayNode
 		CameraArrayNode()					;
 
     void	run()							;
+    void	tick()							;
 
   private:
-    void	tick()							;
     void	add_parameters()					;
     void	reconf_callback(const ReconfServer::Params& new_params,
 				const ReconfServer::Params& old_params)	;
@@ -243,10 +244,10 @@ CameraArrayNode<CAMERAS>::publish_image(const camera_t& camera,
 {
     using namespace	sensor_msgs;
 
-    image_t	image;
-    image.header = header;
-    image.height = camera.height();
-    image.width	 = camera.width();
+    image_p	image(new image_t);
+    image->header = header;
+    image->height = camera.height();
+    image->width  = camera.width();
 
     if (_convert_to_rgb)
     {
@@ -257,56 +258,57 @@ CameraArrayNode<CAMERAS>::publish_image(const camera_t& camera,
 #endif
 	    encoding == image_encodings::BAYER_GRBG8)
 	{
-	    image.encoding = image_encodings::RGB8;
-	    image.step	   = image.width
-			   *  image_encodings::numChannels(image.encoding)
-			   * (image_encodings::bitDepth(image.encoding)/8);
-	    image.data.resize(image.step * image.height);
+	    image->encoding = image_encodings::RGB8;
+	    image->step	    = image->width
+			    *  image_encodings::numChannels(image->encoding)
+			    * (image_encodings::bitDepth(image->encoding)/8);
+	    image->data.resize(image->step * image->height);
 
-	    camera.captureBayerRaw(image.data.data());
+	    camera.captureBayerRaw(image->data.data());
 	}
 	else if (encoding == image_encodings::BGR8  ||
 		 encoding == image_encodings::BGRA8 ||
 		 encoding == image_encodings::RGBA8 ||
 		 encoding == image_encodings::YUV422)
 	{
-	    image.encoding = image_encodings::RGB8;
-	    image.step	   = image.width
-			   *  image_encodings::numChannels(image.encoding)
-			   * (image_encodings::bitDepth(image.encoding)/8);
-	    image.data.resize(image.step * image.height);
+	    image->encoding = image_encodings::RGB8;
+	    image->step	    = image->width
+			    *  image_encodings::numChannels(image->encoding)
+			    * (image_encodings::bitDepth(image->encoding)/8);
+	    image->data.resize(image->step * image->height);
 
 	    _image.resize(camera.width() * camera.height() * sizeof(T));
 	    camera.captureRaw(_image.data());
 
 	    constexpr auto	N = iterator_value<
 					pixel_iterator<const T*> >::npixels;
-	    const auto		npixels = image.width * image.height;
+	    const auto		npixels = image->width * image->height;
 	    std::copy_n(make_pixel_iterator(
 			    reinterpret_cast<const T*>(_image.data())),
 			npixels/N,
 			make_pixel_iterator(
-			    reinterpret_cast<RGB*>(image.data.data())));
+			    reinterpret_cast<RGB*>(image->data.data())));
 	}
 	else
 	{
-	    image.encoding = encoding;
-	    image.step	   = image.width
-			   *  image_encodings::numChannels(image.encoding)
-			   * (image_encodings::bitDepth(image.encoding)/8);
-	    image.data.resize(image.step * image.height);
-	    camera.captureRaw(image.data.data());
+	    image->encoding = encoding;
+	    image->step	    = image->width
+			    *  image_encodings::numChannels(image->encoding)
+			    * (image_encodings::bitDepth(image->encoding)/8);
+	    image->data.resize(image->step * image->height);
+	    camera.captureRaw(image->data.data());
 	}
     }
     else
     {
-	image.encoding = encoding;
-	image.step     = image.width
-		       *  image_encodings::numChannels(image.encoding)
-		       * (image_encodings::bitDepth(image.encoding)/8);
-	image.data.resize(image.step * image.height);
-	camera.captureRaw(image.data.data());
-	fix_yuyv<T>(image.data.data(), image.data.data() + image.data.size());
+	image->encoding = encoding;
+	image->step     = image->width
+		        *  image_encodings::numChannels(image->encoding)
+		        * (image_encodings::bitDepth(image->encoding)/8);
+	image->data.resize(image->step * image->height);
+	camera.captureRaw(image->data.data());
+	fix_yuyv<T>(image->data.data(),
+		    image->data.data() + image->data.size());
     }
 
     pub.publish(image);
@@ -354,18 +356,30 @@ class CameraArrayNodelet : public nodelet::Nodelet
     CameraArrayNodelet()						{}
 
     virtual void	onInit()					;
+    void		timer_callback(const ros::TimerEvent&)		;
 
   private:
     ros::NodeHandle					_nh;
     boost::shared_ptr<CameraArrayNode<CAMERAS> >	_impl;
+    ros::Timer						_timer;
 };
 
 template <class CAMERAS> void
 CameraArrayNodelet<CAMERAS>::onInit()
 {
-    _nh = getNodeHandle();
     NODELET_INFO("CameraArrayNodeklet<CAMERAS>::onInit()");
+
+    _nh = getNodeHandle();
     _impl.reset(new CameraArrayNode<CAMERAS>());
+    _timer = _nh.createTimer(ros::Duration(0.02),
+			     &CameraArrayNodelet::timer_callback, this);
+
+}
+
+template <class CAMERAS> void
+CameraArrayNodelet<CAMERAS>::timer_callback(const ros::TimerEvent&)
+{
+    _impl->tick();
 }
 
 }	// namespace TU

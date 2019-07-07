@@ -1,0 +1,8 @@
+<library path="lib/libiidc_camera_nodelet">
+  <class name="iidc_camera/iidc_camera_nodelet"
+	 type="TU::iidc_camera_nodelet"
+	 base_class_type="nodelet::Nodelet">
+    <description>
+    </description>
+  </class>
+</library>
