@@ -43,6 +43,7 @@ class CameraArrayNode
     using image_t  = sensor_msgs::Image;
     using image_p  = sensor_msgs::ImagePtr;
     using cinfo_t  = sensor_msgs::CameraInfo;
+    using cinfo_p  = sensor_msgs::CameraInfoPtr;
     using cmodel_t = Camera<IntrinsicWithDistortion<
 				 IntrinsicBase<double> > >;
 
@@ -58,37 +59,33 @@ class CameraArrayNode
     void	add_parameters()					;
     void	reconf_callback(const ReconfServer::Params& new_params,
 				const ReconfServer::Params& old_params)	;
-    void	publish_image(const camera_t& camera,
-			      const header_t& header,
-			      const image_transport::Publisher& pub)
+    void	publish(const camera_t& camera,
+			const header_t& header,
+			const cmodel_t& cmodel,
+			const image_transport::CameraPublisher& pub)
 								const	;
     template <class T>
-    void	publish_image(const camera_t& camera,
-			      const header_t& header,
-			      const image_transport::Publisher& pub,
-			      const std::string& encoding)	const	;
-    void	publish_cinfo(const camera_t& camera,
-			      const header_t& header,
-			      const cmodel_t& cmodel,
-			      const ros::Publisher& pub)	const	;
+    void	publish(const camera_t& camera,
+			const header_t& header,
+			const cmodel_t& cmodel,
+			const image_transport::CameraPublisher& pub,
+			const std::string& encoding)		const	;
     void	set_feature(camera_t& camera,
 			    const ReconfServer::Param& param)	const	;
     void	get_feature(const camera_t& camera,
 			    ReconfServer::Param& param)		const	;
 
   private:
-    ros::NodeHandle				_nh;
-    CAMERAS					_cameras;
-    size_t					_n;	// camera # selected
-    mutable std::vector<uint8_t>		_image;
-    image_transport::ImageTransport		_it;
-    std::vector<image_transport::Publisher>	_pubs;
-    std::vector<ros::Publisher>			_cinfo_pubs;
-    int						_max_skew;
-    bool					_convert_to_rgb;
-    std::vector<cmodel_t>			_cmodels;
-
-    ReconfServer				_reconf_server;
+    ros::NodeHandle					_nh;
+    CAMERAS						_cameras;
+    size_t						_n;  // selected camera
+    mutable std::vector<uint8_t>			_image;
+    image_transport::ImageTransport			_it;
+    std::vector<image_transport::CameraPublisher>	_pubs;
+    int							_max_skew;
+    bool						_convert_to_rgb;
+    std::vector<cmodel_t>				_cmodels;
+    ReconfServer					_reconf_server;
 };
 
 template <class CAMERAS>
@@ -118,9 +115,8 @@ CameraArrayNode<CAMERAS>::CameraArrayNode()
     {
 	const auto	device_name = "camera" + std::to_string(i);
 
-	_pubs.emplace_back(_it.advertise((device_name + "/image").c_str(), 1));
-	_cinfo_pubs.emplace_back(
-	    _nh.advertise<cinfo_t>((device_name + "/camera_info").c_str(), 1));
+	_pubs.emplace_back(
+	    _it.advertiseCamera((device_name + "/image").c_str(), 1));
     }
 
   // Load calibration.
@@ -192,8 +188,7 @@ CameraArrayNode<CAMERAS>::tick()
 			   nsec.count() % 1000000000};
 	header.frame_id	= "camera" + std::to_string(i);
 
-	publish_image(camera, header, _pubs[i]);
-	publish_cinfo(camera, header, _cmodels[i], _cinfo_pubs[i]);
+	publish(camera, header, _cmodels[i], _pubs[i]);
     }
 }
 
@@ -237,10 +232,11 @@ CameraArrayNode<CAMERAS>::reconf_callback(
 }
 
 template <class CAMERAS> template <class T> void
-CameraArrayNode<CAMERAS>::publish_image(const camera_t& camera,
-					const header_t& header,
-					const image_transport::Publisher& pub,
-					const std::string& encoding) const
+CameraArrayNode<CAMERAS>::publish(const camera_t& camera,
+				  const header_t& header,
+				  const cmodel_t& cmodel,
+				  const image_transport::CameraPublisher& pub,
+				  const std::string& encoding) const
 {
     using namespace	sensor_msgs;
 
@@ -311,39 +307,30 @@ CameraArrayNode<CAMERAS>::publish_image(const camera_t& camera,
 		    image->data.data() + image->data.size());
     }
 
-    pub.publish(image);
-}
+    cinfo_p	cinfo(new cinfo_t);
+    cinfo->header	    = header;
+    cinfo->height	    = camera.height();
+    cinfo->width	    = camera.width();
+    cinfo->distortion_model = "plumb_bob";
 
-template <class CAMERAS> void
-CameraArrayNode<CAMERAS>::publish_cinfo(const camera_t& camera,
-					const header_t& header,
-					const cmodel_t& cmodel,
-					const ros::Publisher& cinfo_pub) const
-{
-    cinfo_t	cinfo;
-    cinfo.header	   = header;
-    cinfo.height	   = camera.height();
-    cinfo.width		   = camera.width();
-    cinfo.distortion_model = "plumb_bob";
-
-    cinfo.D.resize(4);
-    cinfo.D[0] = cmodel.d1();
-    cinfo.D[1] = cmodel.d2();
-    cinfo.D[2] = cinfo.D[3] = 0;
+    cinfo->D.resize(4);
+    cinfo->D[0] = cmodel.d1();
+    cinfo->D[1] = cmodel.d2();
+    cinfo->D[2] = cinfo->D[3] = 0;
 
     const auto	K = cmodel.K();
-    std::copy(K.data(), K.data() + 9, cinfo.K.data());
+    std::copy(K.data(), K.data() + 9, cinfo->K.data());
 
     const auto	Rt = cmodel.Rt();
-    std::copy(Rt.data(), Rt.data() + 9, cinfo.R.data());
+    std::copy(Rt.data(), Rt.data() + 9, cinfo->R.data());
 
     const auto	P = cmodel.P();
-    std::copy(P.data(), P.data() + 12, cinfo.P.data());
+    std::copy(P.data(), P.data() + 12, cinfo->P.data());
 
-    cinfo.binning_x = cinfo.binning_y  = 0;
-    cinfo.roi.width = cinfo.roi.height = 0;
+    cinfo->binning_x = cinfo->binning_y  = 0;
+    cinfo->roi.width = cinfo->roi.height = 0;
 
-    cinfo_pub.publish(cinfo);
+    pub.publish(image, cinfo);
 }
 
 /************************************************************************

@@ -157,54 +157,55 @@ CameraArrayNode<V4L2CameraArray>::get_feature(
 }
 
 template <> void
-CameraArrayNode<V4L2CameraArray>::publish_image(
-    const camera_t& camera, const header_t& header,
-    const image_transport::Publisher& pub) const
+CameraArrayNode<V4L2CameraArray>::publish(
+    const camera_t& camera, const header_t& header, const cmodel_t& cmodel,
+    const image_transport::CameraPublisher& pub) const
 {
     using namespace	sensor_msgs;
 
     switch (camera.pixelFormat())
     {
       case V4L2Camera::BGR24:
-	publish_image<BGR>(camera, header, pub, image_encodings::BGR8);
+	publish<BGR>(camera, header, cmodel, pub, image_encodings::BGR8);
 	break;
       case V4L2Camera::RGB24:
-	publish_image<RGB>(camera, header, pub, image_encodings::RGB8);
+	publish<RGB>(camera, header, cmodel, pub, image_encodings::RGB8);
 	break;
       case V4L2Camera::BGR32:
-	publish_image<BGRA>(camera, header, pub, image_encodings::BGRA8);
+	publish<BGRA>(camera, header, cmodel, pub, image_encodings::BGRA8);
 	break;
       case V4L2Camera::RGB32:
-	publish_image<ARGB>(camera, header, pub, image_encodings::RGBA8);
+	publish<ARGB>(camera, header, cmodel, pub, image_encodings::RGBA8);
 	break;
       case V4L2Camera::GREY:
-	publish_image<uint8_t>(camera, header, pub, image_encodings::MONO8);
+	publish<uint8_t>(camera, header, cmodel, pub, image_encodings::MONO8);
 	break;
       case V4L2Camera::Y16:
-	publish_image<uint16_t>(camera, header, pub, image_encodings::MONO16);
+	publish<uint16_t>(camera, header, cmodel, pub,
+			  image_encodings::MONO16);
 	break;
       case V4L2Camera::YUYV:
-	publish_image<YUYV422>(camera, header, pub, image_encodings::YUV422);
+	publish<YUYV422>(camera, header, cmodel, pub, image_encodings::YUV422);
 	break;
       case V4L2Camera::UYVY:
-	publish_image<YUV422>(camera, header, pub, image_encodings::YUV422);
+	publish<YUV422>(camera, header, cmodel, pub, image_encodings::YUV422);
 	break;
       case V4L2Camera::SBGGR8:
-	publish_image<uint8_t>(camera, header, pub,
-			       image_encodings::BAYER_BGGR8);
+	publish<uint8_t>(camera, header, cmodel, pub,
+			 image_encodings::BAYER_BGGR8);
 	break;
       case V4L2Camera::SGBRG8:
-	publish_image<uint8_t>(camera, header, pub,
-			       image_encodings::BAYER_GBRG8);
+	publish<uint8_t>(camera, header, cmodel, pub,
+			 image_encodings::BAYER_GBRG8);
 	break;
       case V4L2Camera::SGRBG8:
-	publish_image<uint8_t>(camera, header, pub,
-			       image_encodings::BAYER_GRBG8);
+	publish<uint8_t>(camera, header, cmodel, pub,
+			 image_encodings::BAYER_GRBG8);
 	break;
 #ifdef V4L2_PIX_FMT_SRGGB8
       case V4L2Camera::SRGGB8:
-	publish_image<uint8_t>(camera, header, pub,
-			       image_encodings::BAYER_RGGB8);
+	publish<uint8_t>(camera, header, cmodel, pub,
+			 image_encodings::BAYER_RGGB8);
 	break;
 #endif
       default:

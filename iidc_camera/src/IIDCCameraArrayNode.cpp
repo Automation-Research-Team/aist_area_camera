@@ -7,7 +7,7 @@
 namespace TU
 {
 constexpr static u_int	OFFSET_ABS_VAL = 0x2;
-    
+
 /************************************************************************
 *  class CameraArrayNode<IIDCCameraArray>				*
 ************************************************************************/
@@ -35,7 +35,7 @@ CameraArrayNode<IIDCCameraArray>::add_parameters()
 	{
 	    if (formatName.format == camera.getFormat())
 		frameRate = camera.getFrameRate();
-	    
+
 	    const auto	parent = _reconf_server.addGroup(formatName.name);
 	    _reconf_server.addParam(formatName.format,
 				    "Frame Rate", "Select frame rate.", enums,
@@ -79,7 +79,7 @@ CameraArrayNode<IIDCCameraArray>::add_parameters()
 	    camera.getMinMax(feature, min, max);
 	    u_int	ub, vr;
 	    camera.getWhiteBalance(ub, vr);
-		
+
 	    _reconf_server.addParam<int>(feature,
 					 "U/B", "White bal.(U/V)",
 					 min, max, ub, parent);
@@ -111,7 +111,7 @@ CameraArrayNode<IIDCCameraArray>::add_parameters()
 	    camera.getMinMax(feature, min, max);
 	    _reconf_server.addParam<int>(feature, "Value", name, min, max,
 					 camera.getValue(feature), parent);
-	    
+
 	    if (inq & IIDCCamera::Abs_Control)
 	    {
 		float	min, max;
@@ -176,7 +176,7 @@ CameraArrayNode<IIDCCameraArray>::set_feature(
 	    TU::setFeature(camera, level, val, param.value<double>());
     }
 }
-    
+
 template <> void
 CameraArrayNode<IIDCCameraArray>::get_feature(
     const camera_t& camera, ReconfServer::Param& param) const
@@ -194,7 +194,7 @@ CameraArrayNode<IIDCCameraArray>::get_feature(
 	u_int		val;
 	float		fval;
 	TU::getFeature(camera, level, val, fval);
-	  
+
 	if (param.type_info() == typeid(bool))
 	    param.setValue(bool(val));
 	else if (param.type_info() == typeid(int))
@@ -203,11 +203,11 @@ CameraArrayNode<IIDCCameraArray>::get_feature(
 	    param.setValue(double(fval));
     }
 }
-    
+
 template <> void
-CameraArrayNode<IIDCCameraArray>::publish_image(
-    const camera_t& camera, const header_t& header,
-    const image_transport::Publisher& pub) const
+CameraArrayNode<IIDCCameraArray>::publish(
+    const camera_t& camera, const header_t& header, const cmodel_t& cmodel,
+    const image_transport::CameraPublisher& pub) const
 {
     using namespace	sensor_msgs;
 
@@ -217,57 +217,58 @@ CameraArrayNode<IIDCCameraArray>::publish_image(
 	switch (camera.bayerTileMapping())
 	{
 	  case IIDCCamera::RGGB:
-	    publish_image<uint8_t>(camera, header, pub,
-				   image_encodings::BAYER_RGGB8);
+	    publish<uint8_t>(camera, header, cmodel, pub,
+			     image_encodings::BAYER_RGGB8);
 	    break;
 	  case IIDCCamera::BGGR:
-	    publish_image<uint8_t>(camera, header, pub,
-				   image_encodings::BAYER_BGGR8);
+	    publish<uint8_t>(camera, header, cmodel, pub,
+			     image_encodings::BAYER_BGGR8);
 	    break;
 	  case IIDCCamera::GRBG:
-	    publish_image<uint8_t>(camera, header, pub,
-				   image_encodings::BAYER_GRBG8);
+	    publish<uint8_t>(camera, header, cmodel, pub,
+			     image_encodings::BAYER_GRBG8);
 	    break;
 	  case IIDCCamera::GBRG:
-	    publish_image<uint8_t>(camera, header, pub,
-				   image_encodings::BAYER_GBRG8);
+	    publish<uint8_t>(camera, header, cmodel, pub,
+			     image_encodings::BAYER_GBRG8);
 	    break;
 	  default:
-	    publish_image<uint8_t>(camera, header, pub,
-				   image_encodings::MONO8);
+	    publish<uint8_t>(camera, header, cmodel, pub,
+			     image_encodings::MONO8);
 	    break;
 	}
 	break;
 
       case IIDCCamera::RAW_8:
-	publish_image<uint8_t>(camera, header, pub, image_encodings::MONO8);
+	publish<uint8_t>(camera, header, cmodel, pub, image_encodings::MONO8);
 	break;
 
       case IIDCCamera::YUV_411:
-	publish_image<YUV411>(camera, header, pub, image_encodings::YUV422);
+	publish<YUV411>(camera, header, cmodel, pub, image_encodings::YUV422);
 	break;
-	
+
       case IIDCCamera::MONO_16:
       case IIDCCamera::RAW_16:
-	publish_image<uint16_t>(camera, header, pub, image_encodings::MONO16);
+	publish<uint16_t>(camera, header, cmodel, pub,
+			  image_encodings::MONO16);
 	break;
 
       case IIDCCamera::SIGNED_MONO_16:
-	publish_image<int16_t>(camera, header, pub, image_encodings::MONO16);
+	publish<int16_t>(camera, header, cmodel, pub, image_encodings::MONO16);
 	break;
 
       case IIDCCamera::YUV_422:
-	publish_image<YUYV422>(camera, header, pub, image_encodings::YUV422);
+	publish<YUYV422>(camera, header, cmodel, pub, image_encodings::YUV422);
 	break;
-	
+
       case IIDCCamera::YUV_444:
-	publish_image<YUV444>(camera, header, pub, image_encodings::YUV422);
+	publish<YUV444>(camera, header, cmodel, pub, image_encodings::YUV422);
 	break;
 
       case IIDCCamera::RGB_24:
-	publish_image<RGB>(camera, header, pub, image_encodings::RGB8);
+	publish<RGB>(camera, header, cmodel, pub, image_encodings::RGB8);
 	break;
-	
+
       default:
 	ROS_WARN_STREAM("Unsupported image encoding!");
 	break;
