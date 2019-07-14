@@ -16,7 +16,7 @@ main(int argc, char** argv)
 
     try
     {
-        TU::CameraArrayNode<TU::IIDCCameraArray>	node;
+        TU::CameraArrayNode<TU::IIDCCameraArray>	node("~");
         node.run();
     }
     catch (const std::exception& err)

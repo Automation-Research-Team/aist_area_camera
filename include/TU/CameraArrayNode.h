@@ -50,11 +50,12 @@ class CameraArrayNode
     constexpr static int	SELECT_CAMERA	= 0;
 
   public:
-		CameraArrayNode()					;
+		CameraArrayNode(const std::string& name)		;
 
     void	run()							;
     void	tick()							;
-
+    double	rate()						const	;
+    
   private:
     void	add_parameters()					;
     void	reconf_callback(const ReconfServer::Params& new_params,
@@ -84,17 +85,19 @@ class CameraArrayNode
     std::vector<image_transport::CameraPublisher>	_pubs;
     int							_max_skew;
     bool						_convert_to_rgb;
+    double						_rate;
     std::vector<cmodel_t>				_cmodels;
     ReconfServer					_reconf_server;
 };
 
 template <class CAMERAS>
-CameraArrayNode<CAMERAS>::CameraArrayNode()
-    :_nh("~"),
+CameraArrayNode<CAMERAS>::CameraArrayNode(const std::string& name)
+    :_nh(name),
      _n(0),
      _it(_nh),
      _max_skew(0),
      _convert_to_rgb(false),
+     _rate(100.0),
      _reconf_server(_nh)
 {
   // Restore camera configurations and create cameras.
@@ -109,6 +112,9 @@ CameraArrayNode<CAMERAS>::CameraArrayNode()
 
   // Set whether converting color formats to RGB or not.
     _nh.param("convert_to_rgb", _convert_to_rgb, false);
+
+  // Set rate.
+    _nh.param("rate", _rate, 100.0);
 
   // Create publishers.
     for (size_t i = 0; i < _cameras.size(); ++i)
@@ -160,7 +166,7 @@ CameraArrayNode<CAMERAS>::CameraArrayNode()
 template <class CAMERAS> void
 CameraArrayNode<CAMERAS>::run()
 {
-    ros::Rate looprate(200);	// 200Hz
+    ros::Rate looprate(_rate);
 
     while (ros::ok())
     {
@@ -192,6 +198,12 @@ CameraArrayNode<CAMERAS>::tick()
     }
 }
 
+template <class CAMERAS> double
+CameraArrayNode<CAMERAS>::rate() const
+{
+    return _rate;
+}
+    
 template <class CAMERAS> void
 CameraArrayNode<CAMERAS>::reconf_callback(
     const ReconfServer::Params& new_params,
@@ -347,7 +359,7 @@ class CameraArrayNodelet : public nodelet::Nodelet
 
   private:
     ros::NodeHandle					_nh;
-    boost::shared_ptr<CameraArrayNode<CAMERAS> >	_impl;
+    boost::shared_ptr<CameraArrayNode<CAMERAS> >	_node;
     ros::Timer						_timer;
 };
 
@@ -357,8 +369,8 @@ CameraArrayNodelet<CAMERAS>::onInit()
     NODELET_INFO("CameraArrayNodeklet<CAMERAS>::onInit()");
 
     _nh = getNodeHandle();
-    _impl.reset(new CameraArrayNode<CAMERAS>());
-    _timer = _nh.createTimer(ros::Duration(0.02),
+    _node.reset(new CameraArrayNode<CAMERAS>(getName()));
+    _timer = _nh.createTimer(ros::Duration(1.0/_node->rate()),
 			     &CameraArrayNodelet::timer_callback, this);
 
 }
@@ -366,7 +378,7 @@ CameraArrayNodelet<CAMERAS>::onInit()
 template <class CAMERAS> void
 CameraArrayNodelet<CAMERAS>::timer_callback(const ros::TimerEvent&)
 {
-    _impl->tick();
+    _node->tick();
 }
 
 }	// namespace TU
