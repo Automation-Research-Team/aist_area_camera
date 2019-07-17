@@ -8,6 +8,7 @@
 #include <chrono>
 #include <ros/ros.h>
 #include <nodelet/nodelet.h>
+#include <std_srvs/Trigger.h>
 #include <image_transport/image_transport.h>
 #include <sensor_msgs/image_encodings.h>
 #include "TU/Camera++.h"
@@ -47,7 +48,8 @@ class CameraArrayNode
     using cmodel_t = Camera<IntrinsicWithDistortion<
 				 IntrinsicBase<double> > >;
 
-    constexpr static int	SELECT_CAMERA	= 0;
+    constexpr static int	CONTINUOUS_SHOT	= 1;
+    constexpr static int	SELECT_CAMERA	= 2;
 
   public:
 		CameraArrayNode(const std::string& name)		;
@@ -55,11 +57,14 @@ class CameraArrayNode
     void	run()							;
     void	tick()							;
     double	rate()						const	;
-    
+
   private:
     void	add_parameters()					;
+    bool	one_shot_callback(std_srvs::Trigger::Request&  req,
+				  std_srvs::Trigger::Response& res)	;
     void	reconf_callback(const ReconfServer::Params& new_params,
 				const ReconfServer::Params& old_params)	;
+    void	publish()					const	;
     void	publish(const camera_t& camera,
 			const header_t& header,
 			const cmodel_t& cmodel,
@@ -87,6 +92,7 @@ class CameraArrayNode
     bool						_convert_to_rgb;
     double						_rate;
     std::vector<cmodel_t>				_cmodels;
+    const ros::ServiceServer				_one_shot_server;
     ReconfServer					_reconf_server;
 };
 
@@ -98,6 +104,8 @@ CameraArrayNode<CAMERAS>::CameraArrayNode(const std::string& name)
      _max_skew(0),
      _convert_to_rgb(false),
      _rate(100.0),
+     _one_shot_server(
+	 _nh.advertiseService("one_shot", &one_shot_callback, this)),
      _reconf_server(_nh)
 {
   // Restore camera configurations and create cameras.
@@ -105,6 +113,8 @@ CameraArrayNode<CAMERAS>::CameraArrayNode(const std::string& name)
     _nh.param<std::string>("camera_name", camera_name,
 			   CAMERAS::DEFAULT_CAMERA_NAME);
     _cameras.setName(camera_name.c_str()).restore();
+    if (_cameras.size() == 0)
+	throw std::runtime_error("No cameras found.");
     _n = _cameras.size();				// Select all cameras.
 
   // Set maximum skew allowed for synchronizing multiple cameras.
@@ -142,6 +152,8 @@ CameraArrayNode<CAMERAS>::CameraArrayNode(const std::string& name)
     }
 
   // Setup dynamic reconfigure
+    _reconf_server.addParam(CONTINUOUS_SHOT, "continuos_shot",
+			    "Start/stop streaming images", true);
     if (_cameras.size() > 1)
     {
 	ReconfServer::Enums	enums;
@@ -166,7 +178,7 @@ CameraArrayNode<CAMERAS>::CameraArrayNode(const std::string& name)
 template <class CAMERAS> void
 CameraArrayNode<CAMERAS>::run()
 {
-    ros::Rate looprate(_rate);
+    ros::Rate		looprate(_rate);
 
     while (ros::ok())
     {
@@ -179,23 +191,17 @@ CameraArrayNode<CAMERAS>::run()
 template <class CAMERAS> void
 CameraArrayNode<CAMERAS>::tick()
 {
+
+    if (!_cameras[0].inContinuousShot())
+	return;
+
     if (_max_skew > 0)
 	syncedSnap(_cameras, std::chrono::nanoseconds(_max_skew));
     else
 	for (auto& camera : _cameras)
 	    camera.snap();
 
-    for (size_t i = 0; i < _cameras.size(); ++i)
-    {
-	const auto&	camera = _cameras[i];
-	const auto	nsec   = camera.getTimestamp().time_since_epoch();
-	header_t	header;
-	header.stamp	= {nsec.count() / 1000000000,
-			   nsec.count() % 1000000000};
-	header.frame_id	= "camera" + std::to_string(i);
-
-	publish(camera, header, _cmodels[i], _pubs[i]);
-    }
+    publish();
 }
 
 template <class CAMERAS> double
@@ -203,7 +209,18 @@ CameraArrayNode<CAMERAS>::rate() const
 {
     return _rate;
 }
-    
+
+template <class CAMERAS> bool
+CameraArrayNode<CAMERAS>::one_shot_callback(std_srvs::Trigger::Request&  req,
+					    std_srvs::Trigger::Response& res)
+{
+    res.success = false;
+    res.message = "one_shot is not supported.";
+    ROS_WARN_STREAM(res.message);
+
+    return true;
+}
+
 template <class CAMERAS> void
 CameraArrayNode<CAMERAS>::reconf_callback(
     const ReconfServer::Params& new_params,
@@ -217,18 +234,25 @@ CameraArrayNode<CAMERAS>::reconf_callback(
 	{
 	    ROS_DEBUG_STREAM(*new_param);
 
-	    if (new_param->level == SELECT_CAMERA)
+	    switch (new_param->level)
 	    {
+	      case CONTINUOUS_SHOT:
+		for (auto& camera : _cameras)
+		    camera.continuousShot(new_param->value<bool>());
+		break;
+
+	      case SELECT_CAMERA:
 		_n = new_param->value<int>();
 		refresh = true;
-	    }
-	    else
-	    {
+		break;
+
+	      default:
 		if (_n < _cameras.size())
 		    set_feature(_cameras[_n], *new_param);
 		else
 		    for (auto& camera : _cameras)
 			set_feature(camera, *new_param);
+		break;
 	    }
 	}
 
@@ -240,6 +264,22 @@ CameraArrayNode<CAMERAS>::reconf_callback(
 	for (const auto& new_param : new_params)
 	    if (new_param->level != SELECT_CAMERA && _n < _cameras.size())
 		get_feature(_cameras[_n], *new_param);
+    }
+}
+
+template <class CAMERAS> void
+CameraArrayNode<CAMERAS>::publish() const
+{
+    for (size_t i = 0; i < _cameras.size(); ++i)
+    {
+	const auto&	camera = _cameras[i];
+	const auto	nsec   = camera.getTimestamp().time_since_epoch();
+	header_t	header;
+	header.stamp	= {nsec.count() / 1000000000,
+			   nsec.count() % 1000000000};
+	header.frame_id	= "camera" + std::to_string(i);
+
+	publish(camera, header, _cmodels[i], _pubs[i]);
     }
 }
 
@@ -257,66 +297,74 @@ CameraArrayNode<CAMERAS>::publish(const camera_t& camera,
     image->height = camera.height();
     image->width  = camera.width();
 
-    if (_convert_to_rgb)
+    try
     {
-	if (encoding == image_encodings::BAYER_BGGR8 ||
-	    encoding == image_encodings::BAYER_GBRG8 ||
+	if (_convert_to_rgb)
+	{
+	    if (encoding == image_encodings::BAYER_BGGR8 ||
+		encoding == image_encodings::BAYER_GBRG8 ||
 #ifdef V4L2_PIX_FMT_SRGGB8
-	    encoding == image_encodings::BAYER_RGGB8 ||
+		encoding == image_encodings::BAYER_RGGB8 ||
 #endif
-	    encoding == image_encodings::BAYER_GRBG8)
-	{
-	    image->encoding = image_encodings::RGB8;
-	    image->step	    = image->width
-			    *  image_encodings::numChannels(image->encoding)
-			    * (image_encodings::bitDepth(image->encoding)/8);
-	    image->data.resize(image->step * image->height);
+		encoding == image_encodings::BAYER_GRBG8)
+	    {
+		image->encoding = image_encodings::RGB8;
+		image->step	= image->width
+				*  image_encodings::numChannels(image->encoding)
+				* (image_encodings::bitDepth(image->encoding)/8);
+		image->data.resize(image->step * image->height);
 
-	    camera.captureBayerRaw(image->data.data());
-	}
-	else if (encoding == image_encodings::BGR8  ||
-		 encoding == image_encodings::BGRA8 ||
-		 encoding == image_encodings::RGBA8 ||
-		 encoding == image_encodings::YUV422)
-	{
-	    image->encoding = image_encodings::RGB8;
-	    image->step	    = image->width
-			    *  image_encodings::numChannels(image->encoding)
-			    * (image_encodings::bitDepth(image->encoding)/8);
-	    image->data.resize(image->step * image->height);
+		camera.captureBayerRaw(image->data.data());
+	    }
+	    else if (encoding == image_encodings::BGR8  ||
+		     encoding == image_encodings::BGRA8 ||
+		     encoding == image_encodings::RGBA8 ||
+		     encoding == image_encodings::YUV422)
+	    {
+		image->encoding = image_encodings::RGB8;
+		image->step	= image->width
+				*  image_encodings::numChannels(image->encoding)
+				* (image_encodings::bitDepth(image->encoding)/8);
+		image->data.resize(image->step * image->height);
 
-	    _image.resize(camera.width() * camera.height() * sizeof(T));
-	    camera.captureRaw(_image.data());
+		_image.resize(camera.width() * camera.height() * sizeof(T));
+		camera.captureRaw(_image.data());
 
-	    constexpr auto	N = iterator_value<
-					pixel_iterator<const T*> >::npixels;
-	    const auto		npixels = image->width * image->height;
-	    std::copy_n(make_pixel_iterator(
-			    reinterpret_cast<const T*>(_image.data())),
-			npixels/N,
-			make_pixel_iterator(
-			    reinterpret_cast<RGB*>(image->data.data())));
+		constexpr auto	N = iterator_value<
+		    pixel_iterator<const T*> >::npixels;
+		const auto		npixels = image->width * image->height;
+		std::copy_n(make_pixel_iterator(
+				reinterpret_cast<const T*>(_image.data())),
+			    npixels/N,
+			    make_pixel_iterator(
+				reinterpret_cast<RGB*>(image->data.data())));
+	    }
+	    else
+	    {
+		image->encoding = encoding;
+		image->step	= image->width
+				*  image_encodings::numChannels(image->encoding)
+				* (image_encodings::bitDepth(image->encoding)/8);
+		image->data.resize(image->step * image->height);
+		camera.captureRaw(image->data.data());
+	    }
 	}
 	else
 	{
 	    image->encoding = encoding;
-	    image->step	    = image->width
+	    image->step     = image->width
 			    *  image_encodings::numChannels(image->encoding)
 			    * (image_encodings::bitDepth(image->encoding)/8);
 	    image->data.resize(image->step * image->height);
 	    camera.captureRaw(image->data.data());
+	    fix_yuyv<T>(image->data.data(),
+			image->data.data() + image->data.size());
 	}
     }
-    else
+    catch (const std::exception& err)
     {
-	image->encoding = encoding;
-	image->step     = image->width
-		        *  image_encodings::numChannels(image->encoding)
-		        * (image_encodings::bitDepth(image->encoding)/8);
-	image->data.resize(image->step * image->height);
-	camera.captureRaw(image->data.data());
-	fix_yuyv<T>(image->data.data(),
-		    image->data.data() + image->data.size());
+	ROS_WARN_STREAM(err.what());
+	return;
     }
 
     cinfo_p	cinfo(new cinfo_t);

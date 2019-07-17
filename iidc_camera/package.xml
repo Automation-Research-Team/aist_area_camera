@@ -33,4 +33,8 @@
   <depend>std_srvs</depend>
   <depend>tf</depend>
 
+  <export>
+    <nodelet plugin="${prefix}/nodelet_description.xml"/>
+  </export>
+
 </package>

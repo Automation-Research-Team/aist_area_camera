@@ -20,10 +20,15 @@
     <param name="rate"			value="$(arg rate)"/>
   </node>
 
+  <!-- <node name="image_view" -->
+  <!-- 	pkg ="nodelet" type="nodelet" -->
+  <!-- 	args="load image_view/image $(arg manager_name)"> -->
+  <!--   <remap from="image"	to="/$(arg camera_name)/camera0/image"/>> -->
+  <!-- </node> -->
+
   <node name="image_view"
-  	pkg ="nodelet" type="nodelet"
-  	args="load image_view/image $(arg manager_name)">
-    <remap from="image"	to="/$(arg camera_name)/camera0/image"/>>
+  	pkg = "image_view" type="image_view" output="screen">
+    <remap from="/image"	to="/$(arg camera_name)/camera0/image"/>>
   </node>
 
   <node name="rqt_reconfigure" pkg="rqt_reconfigure" type="rqt_reconfigure"/>

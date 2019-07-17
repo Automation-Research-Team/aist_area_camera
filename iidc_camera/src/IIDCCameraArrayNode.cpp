@@ -11,6 +11,30 @@ constexpr static u_int	OFFSET_ABS_VAL = 0x2;
 /************************************************************************
 *  class CameraArrayNode<IIDCCameraArray>				*
 ************************************************************************/
+template <> bool
+CameraArrayNode<IIDCCameraArray>::one_shot_callback(
+					std_srvs::Trigger::Request&  req,
+					std_srvs::Trigger::Response& res)
+{
+    if (_cameras[0].inContinuousShot())
+    {
+	res.success = false;
+	res.message = "failed. [in continuous shot mode]";
+	ROS_WARN_STREAM(res.message);
+	return;
+    }
+
+    for (auto& camera : _cameras)
+	camera.oneShot().snap();
+
+    publish();
+
+    res.success = true;
+    res.message = "succeded.";
+
+    return true;
+}
+
 template <> void
 CameraArrayNode<IIDCCameraArray>::add_parameters()
 {
