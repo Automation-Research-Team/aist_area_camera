@@ -152,8 +152,10 @@ CameraArrayNode<CAMERAS>::CameraArrayNode(const std::string& name)
     }
 
   // Setup dynamic reconfigure
-    _reconf_server.addParam(CONTINUOUS_SHOT, "continuos_shot",
-			    "Start/stop streaming images", true);
+    _reconf_server.addParam(CONTINUOUS_SHOT,
+			    "continuous_shot",
+			    "Start/stop streaming images",
+			    true);
     if (_cameras.size() > 1)
     {
 	ReconfServer::Enums	enums;
