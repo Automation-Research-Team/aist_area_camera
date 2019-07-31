@@ -36,6 +36,13 @@ CameraArrayNode<IIDCCameraArray>::one_shot_callback(
 }
 
 template <> void
+CameraArrayNode<IIDCCameraArray>::embed_timestamp(bool enable)
+{
+    for (auto& camera : _cameras)
+	camera.embedTimestamp(enable);
+}
+    
+template <> void
 CameraArrayNode<IIDCCameraArray>::add_parameters()
 {
     const auto&	camera = _cameras[0];

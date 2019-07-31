@@ -59,6 +59,7 @@ class CameraArrayNode
     double	rate()						const	;
 
   private:
+    void	embed_timestamp(bool enable)				{}
     void	add_parameters()					;
     bool	one_shot_callback(std_srvs::Trigger::Request&  req,
 				  std_srvs::Trigger::Response& res)	;
@@ -171,6 +172,9 @@ CameraArrayNode<CAMERAS>::CameraArrayNode(const std::string& name)
     add_parameters();
     _reconf_server.setCallback(boost::bind(&reconf_callback, this, _1, _2));
 
+  // Embed timestamp in images. (only for PointGrey's IIDC cameras)
+    embed_timestamp(true);
+    
   // Start cameras.
     ros::Duration(0.5).sleep();
     for (auto& camera : _cameras)
