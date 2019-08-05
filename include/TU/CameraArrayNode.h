@@ -309,9 +309,7 @@ CameraArrayNode<CAMERAS>::publish(const camera_t& camera,
 	{
 	    if (encoding == image_encodings::BAYER_BGGR8 ||
 		encoding == image_encodings::BAYER_GBRG8 ||
-#ifdef V4L2_PIX_FMT_SRGGB8
 		encoding == image_encodings::BAYER_RGGB8 ||
-#endif
 		encoding == image_encodings::BAYER_GRBG8)
 	    {
 		image->encoding = image_encodings::RGB8;
