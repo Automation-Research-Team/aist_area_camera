@@ -9,11 +9,9 @@ find_package(catkin REQUIRED
   COMPONENTS
     roscpp
     roslib
-    std_msgs
     image_transport
     sensor_msgs
-    dynamic_reconfigure
-    tf
+    ddynamic_reconfigure
     pluginlib
     nodelet
 )
@@ -27,8 +25,6 @@ include_directories(include
 catkin_package(
   CATKIN_DEPENDS
     roscpp
-    message_runtime
-    std_msgs
     sensor_msgs
     image_transport
 )
@@ -42,7 +38,6 @@ add_executable(
   ${PROJECT_NAME}
   src/main.cpp
   src/IIDCCameraArrayNode.cpp
-  ${PROJECT_SOURCE_DIR}/../src/ReconfServer.cpp
 )
 
 add_dependencies(
@@ -64,7 +59,6 @@ add_library(
   ${PROJECT_NAME}_nodelet
   src/nodelet.cpp
   src/IIDCCameraArrayNode.cpp
-  ${PROJECT_SOURCE_DIR}/../src/ReconfServer.cpp
 )
 
 add_dependencies(
@@ -84,7 +78,7 @@ target_link_libraries(
 
 install(
   TARGETS
-    ${PROJECT_NAME}
+    ${PROJECT_NAME} ${PROJECT_NAME}_nodelet
   ARCHIVE
     DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY

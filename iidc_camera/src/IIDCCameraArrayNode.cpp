@@ -12,9 +12,8 @@ constexpr static u_int	OFFSET_ABS_VAL = 0x2;
 *  class CameraArrayNode<IIDCCameraArray>				*
 ************************************************************************/
 template <> bool
-CameraArrayNode<IIDCCameraArray>::one_shot_callback(
-					std_srvs::Trigger::Request&  req,
-					std_srvs::Trigger::Response& res)
+CameraArrayNode<IIDCCameraArray>::one_shot_cb(std_srvs::Trigger::Request&  req,
+					      std_srvs::Trigger::Response& res)
 {
     if (_cameras[0].inContinuousShot())
     {
@@ -52,25 +51,25 @@ CameraArrayNode<IIDCCameraArray>::add_parameters()
     {
 	const auto	inq = camera.inquireFrameRate(formatName.format);
 
-	ReconfServer::Enums	enums;
-	IIDCCamera::FrameRate	frameRate;
+	std::map<std::string, int>	enums;
+	IIDCCamera::FrameRate		frameRate;
 	for (const auto& frameRateName : IIDCCamera::frameRateNames)
 	    if (inq & frameRateName.frameRate)
 	    {
-		enums.add(frameRateName.name, frameRateName.frameRate);
+		enums.emplace(frameRateName.name, frameRateName.frameRate);
 		frameRate = frameRateName.frameRate;
 	    }
-	enums.end();
 
 	if (!enums.empty())
 	{
 	    if (formatName.format == camera.getFormat())
 		frameRate = camera.getFrameRate();
 
-	    const auto	parent = _reconf_server.addGroup(formatName.name);
-	    _reconf_server.addParam(formatName.format,
-				    "Frame Rate", "Select frame rate.", enums,
-				    frameRate, parent);
+	    _ddr.registerEnumVariable<int>(
+		formatName.name, frameRate,
+		boost::bind(&CameraArrayNode::set_feature_cb<int>,
+			    this, formatName.format, _1),
+		"Select frame rate.", enums);
 	}
     }
 
@@ -78,7 +77,7 @@ CameraArrayNode<IIDCCameraArray>::add_parameters()
     for (const auto& featureName : IIDCCamera::featureNames)
     {
 	const auto	feature	= featureName.feature;
-	const auto	name	= featureName.name;
+	const auto	name	= std::string(featureName.name);
 	const auto	inq	= camera.inquireFeatureFunction(feature);
 
 	if (!((inq & IIDCCamera::Presence) &&
@@ -86,21 +85,21 @@ CameraArrayNode<IIDCCameraArray>::add_parameters()
 	      (inq & IIDCCamera::ReadOut)))
 	    continue;
 
-	const auto	parent = _reconf_server.addGroup(name, true, false);
 	switch (feature)
 	{
 	  case IIDCCamera::TRIGGER_MODE:
 	  {
-	    ReconfServer::Enums  enums;
+	    std::map<std::string, int>	enums;
 	    for (const auto& triggerModeName : IIDCCamera::triggerModeNames)
 		if (inq & triggerModeName.triggerMode)
-		    enums.add(triggerModeName.name,
-			      triggerModeName.triggerMode);
-	    enums.end();
+		    enums.emplace(triggerModeName.name,
+				  triggerModeName.triggerMode);
 
-	    _reconf_server.addParam(feature,
-				    "Value", "Select trigger mode.", enums,
-				    camera.getTriggerMode(), parent);
+	    _ddr.registerEnumVariable<int>(
+		name, camera.getTriggerMode(),
+		boost::bind(&CameraArrayNode::set_feature_cb<int>,
+			    this, feature, _1),
+		"Select trigger mode.", enums);
 	  }
 	    break;
 
@@ -111,12 +110,16 @@ CameraArrayNode<IIDCCameraArray>::add_parameters()
 	    u_int	ub, vr;
 	    camera.getWhiteBalance(ub, vr);
 
-	    _reconf_server.addParam<int>(feature,
-					 "U/B", "White bal.(U/V)",
-					 min, max, ub, parent);
-	    _reconf_server.addParam<int>(feature + IIDCCAMERA_OFFSET_VR,
-					 "V/R", "White bal.(V/R)",
-					 min, max, vr, parent);
+	    _ddr.registerVariable<int>(
+		"UB", ub,
+		boost::bind(&CameraArrayNode::set_feature_cb<int>,
+			    this, feature, _1),
+		"White bal.(U/V)", min, max);
+	    _ddr.registerVariable<int>(
+		"VR", vr,
+		boost::bind(&CameraArrayNode::set_feature_cb<int>,
+			    this, feature + IIDCCAMERA_OFFSET_VR, _1),
+		"White bal.(V/R)", min, max);
 
 	    if (inq & IIDCCamera::Abs_Control)
 	    {
@@ -125,13 +128,18 @@ CameraArrayNode<IIDCCameraArray>::add_parameters()
 		float	ub, vr;
 		camera.getWhiteBalance(ub, vr);
 
-		_reconf_server.addParam<double>(feature + OFFSET_ABS_VAL,
-						"Abs U/B", "White bal.(U/V)",
-						min, max, ub, parent);
-		_reconf_server.addParam<double>(feature + IIDCCAMERA_OFFSET_VR
-							+ OFFSET_ABS_VAL,
-						"Abs V/R", "White bal.(V/R)",
-						min, max, vr, parent);
+		_ddr.registerVariable<double>(
+		    "Abs_UB", ub,
+		    boost::bind(&CameraArrayNode::set_feature_cb<double>,
+				this, feature + OFFSET_ABS_VAL, _1),
+		    "White bal.(U/V)", min, max);
+		_ddr.registerVariable<double>(
+		    "Abs_VR", vr,
+		    boost::bind(&CameraArrayNode::set_feature_cb<double>,
+				this,
+				feature + IIDCCAMERA_OFFSET_VR+OFFSET_ABS_VAL,
+				_1),
+		    "White bal.(V/R)", min, max);
 	    }
 	  }
 	    break;
@@ -140,98 +148,108 @@ CameraArrayNode<IIDCCameraArray>::add_parameters()
 	  {
 	    u_int	min, max;
 	    camera.getMinMax(feature, min, max);
-	    _reconf_server.addParam<int>(feature, "Value", name, min, max,
-					 camera.getValue(feature), parent);
+	    _ddr.registerVariable<int>(
+		name, camera.getValue(feature),
+		boost::bind(&CameraArrayNode::set_feature_cb<int>,
+			    this, feature, _1),
+		name, min, max);
 
 	    if (inq & IIDCCamera::Abs_Control)
 	    {
 		float	min, max;
 		camera.getMinMax(feature, min, max);
-		_reconf_server.addParam<double>(
-					feature + OFFSET_ABS_VAL,
-					"Abs_Value", name, min, max,
-					camera.getValue<float>(feature),
-					parent);
+		_ddr.registerVariable<double>(
+		    name + "_Abs", camera.getValue<float>(feature),
+		    boost::bind(&CameraArrayNode::set_feature_cb<double>,
+				this, feature + OFFSET_ABS_VAL, _1),
+		    name + "(abs. value)", min, max);
 	    }
 	  }
 	    break;
 	}
 
 	if (inq & IIDCCamera::OnOff)
-	    _reconf_server.addParam(feature + IIDCCAMERA_OFFSET_ONOFF,
-				    "On", "Feature is enabled.",
-				    camera.isActive(feature), parent);
+	    _ddr.registerVariable<bool>(
+		name + "_OnOff", camera.isActive(feature),
+		boost::bind(&CameraArrayNode::set_feature_cb<bool>,
+			    this, feature + IIDCCAMERA_OFFSET_ONOFF, _1),
+		"Feature is enabled.");
 
 	if (inq & IIDCCamera::Auto)
 	    if (feature == IIDCCamera::TRIGGER_MODE)
-		_reconf_server.addParam(feature + IIDCCAMERA_OFFSET_AUTO,
-					"Positive",
-					"Positive trigger polarity",
-					camera.getTriggerPolarity(), parent);
+		_ddr.registerVariable<bool>(
+		    name + "_Positive", camera.getTriggerPolarity(),
+		    boost::bind(&CameraArrayNode::set_feature_cb<bool>,
+				this, feature + IIDCCAMERA_OFFSET_AUTO, _1),
+		    "Positive trigger polarity");
 	    else
-		_reconf_server.addParam(feature + IIDCCAMERA_OFFSET_AUTO,
-					"Auto",
-					"Feature value is set automatically.",
-					camera.isAuto(feature), parent);
+		_ddr.registerVariable<bool>(
+		    name + "_Auto", camera.isAuto(feature),
+		    boost::bind(&CameraArrayNode::set_feature_cb<bool>,
+				this, feature + IIDCCAMERA_OFFSET_AUTO, _1),
+		    "Feature value is set automatically.");
 
 	if (inq & IIDCCamera::Abs_Control)
-	    _reconf_server.addParam(feature + IIDCCAMERA_OFFSET_ABS,
-				    "Abs",
-				    "Feature value is specified in an absolute one.",
-				    camera.isAbsControl(feature), parent);
+	    _ddr.registerVariable<bool>(
+		name + "_Abs", camera.isAbsControl(feature),
+		boost::bind(&CameraArrayNode::set_feature_cb<bool>,
+			    this, feature + IIDCCAMERA_OFFSET_ABS, _1),
+		"Feature value is specified in an absolute one.");
     }
 }
 
-template <> void
-CameraArrayNode<IIDCCameraArray>::set_feature(
-    camera_t& camera, const ReconfServer::Param& param) const
+template <> template <class T> void
+CameraArrayNode<IIDCCameraArray>::set_feature_cb(int feature, T val)
 {
-    if (param.level >= IIDCCamera::YUV444_160x120 &&
-	param.level <= IIDCCamera::Format_7_7)
+    if (feature >= IIDCCamera::YUV444_160x120 &&
+	feature <= IIDCCamera::Format_7_7)
     {
-	TU::setFormat(camera, param.level, param.value<int>());
+	if (_n < _cameras.size())
+	    TU::setFormat(_cameras[_n], feature, val);
+	else
+	    for (auto& camera : _cameras)
+		TU::setFormat(camera, feature, val);
     }
     else
     {
-	const auto	level = (param.type_info() == typeid(double) ?
-				 param.level - OFFSET_ABS_VAL : param.level);
-	u_int		val;
-	float		fval;
-	TU::getFeature(camera, level, val, fval);
+	if (std::is_floating_point<T>::value)
+	{
+	    feature -= OFFSET_ABS_VAL;
 
-	if (param.type_info() == typeid(bool))
-	    TU::setFeature(camera, level, param.value<bool>(), fval);
-	else if (param.type_info() == typeid(int))
-	    TU::setFeature(camera, level, param.value<int>(), fval);
-	else if (param.type_info() == typeid(double))
-	    TU::setFeature(camera, level, val, param.value<double>());
-    }
-}
-
-template <> void
-CameraArrayNode<IIDCCameraArray>::get_feature(
-    const camera_t& camera, ReconfServer::Param& param) const
-{
-    if (param.level >= IIDCCamera::YUV444_160x120 &&
-	param.level <= IIDCCamera::Format_7_7)
-    {
-	if (param.level == camera.getFormat())
-	    param.setValue(camera.getFrameRate());
-    }
-    else
-    {
-	const auto	level = (param.type_info() == typeid(double) ?
-				 param.level - OFFSET_ABS_VAL : param.level);
-	u_int		val;
-	float		fval;
-	TU::getFeature(camera, level, val, fval);
-
-	if (param.type_info() == typeid(bool))
-	    param.setValue(bool(val));
-	else if (param.type_info() == typeid(int))
-	    param.setValue(int(val));
-	else if (param.type_info() == typeid(double))
-	    param.setValue(double(fval));
+	    if (_n < _cameras.size())
+	    {
+		u_int		uval;
+		float		fval;
+		TU::getFeature(_cameras[_n], feature, uval, fval);
+		TU::setFeature(_cameras[_n], feature, uval, val);
+	    }
+	    else
+	    {
+		u_int		uval;
+		float		fval;
+		TU::getFeature(_cameras[0], feature, uval, fval);
+		for (auto& camera : _cameras)
+		    TU::setFeature(camera, feature, uval, val);
+	    }
+	}
+	else
+	{
+	    if (_n < _cameras.size())
+	    {
+		u_int		uval;
+		float		fval;
+		TU::getFeature(_cameras[_n], feature, uval, fval);
+		TU::setFeature(_cameras[_n], feature, val,  fval);
+	    }
+	    else
+	    {
+		u_int		uval;
+		float		fval;
+		TU::getFeature(_cameras[0], feature, uval, fval);
+		for (auto& camera : _cameras)
+		    TU::setFeature(camera, feature, val, fval);
+	    }
+	}
     }
 }
 
