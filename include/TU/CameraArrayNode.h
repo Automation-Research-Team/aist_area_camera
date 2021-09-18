@@ -11,8 +11,8 @@
 #include <std_srvs/Trigger.h>
 #include <image_transport/image_transport.h>
 #include <sensor_msgs/image_encodings.h>
+#include <ddynamic_reconfigure/ddynamic_reconfigure.h>
 #include "TU/Camera++.h"
-#include "TU/ReconfServer.h"
 #include "TU/Image++.h"
 
 namespace TU
@@ -48,11 +48,8 @@ class CameraArrayNode
     using cmodel_t = Camera<IntrinsicWithDistortion<
 				 IntrinsicBase<double> > >;
 
-    constexpr static int	CONTINUOUS_SHOT	= 1;
-    constexpr static int	SELECT_CAMERA	= 2;
-
   public:
-		CameraArrayNode(const std::string& name)		;
+		CameraArrayNode(const ros::NodeHandle& nh)		;
 
     void	run()							;
     void	tick()							;
@@ -61,10 +58,12 @@ class CameraArrayNode
   private:
     void	embed_timestamp(bool enable)				{}
     void	add_parameters()					;
-    bool	one_shot_callback(std_srvs::Trigger::Request&  req,
-				  std_srvs::Trigger::Response& res)	;
-    void	reconf_callback(const ReconfServer::Params& new_params,
-				const ReconfServer::Params& old_params)	;
+    bool	one_shot_cb(std_srvs::Trigger::Request&  req,
+			    std_srvs::Trigger::Response& res)		;
+    void	continuous_shot_cb(bool enable)				;
+    void	select_camera_cb(int idx)				;
+    template <class T>
+    void	set_feature_cb(int feature, T val)			;
     void	publish()					const	;
     void	publish(const camera_t& camera,
 			const header_t& header,
@@ -77,10 +76,6 @@ class CameraArrayNode
 			const cmodel_t& cmodel,
 			const image_transport::CameraPublisher& pub,
 			const std::string& encoding)		const	;
-    void	set_feature(camera_t& camera,
-			    const ReconfServer::Param& param)	const	;
-    void	get_feature(const camera_t& camera,
-			    ReconfServer::Param& param)		const	;
 
   private:
     ros::NodeHandle					_nh;
@@ -94,38 +89,27 @@ class CameraArrayNode
     double						_rate;
     std::vector<cmodel_t>				_cmodels;
     const ros::ServiceServer				_one_shot_server;
-    ReconfServer					_reconf_server;
+    ddynamic_reconfigure::DDynamicReconfigure		_ddr;
 };
 
 template <class CAMERAS>
-CameraArrayNode<CAMERAS>::CameraArrayNode(const std::string& name)
-    :_nh(name),
+CameraArrayNode<CAMERAS>::CameraArrayNode(const ros::NodeHandle& nh)
+    :_nh(nh),
      _n(0),
      _it(_nh),
-     _max_skew(0),
-     _convert_to_rgb(false),
-     _rate(100.0),
-     _one_shot_server(
-	 _nh.advertiseService("one_shot", &one_shot_callback, this)),
-     _reconf_server(_nh)
+     _max_skew(_nh.param("max_skew", 0)),
+     _convert_to_rgb(_nh.param("convert_to_rgb", false)),
+     _rate(_nh.param("rate", 100.0)),
+     _one_shot_server(_nh.advertiseService("one_shot", &one_shot_cb, this)),
+     _ddr(_nh)
 {
   // Restore camera configurations and create cameras.
-    std::string	camera_name;
-    _nh.param<std::string>("camera_name", camera_name,
-			   CAMERAS::DEFAULT_CAMERA_NAME);
+    const auto	camera_name = _nh.param<std::string>(
+				"camera_name", CAMERAS::DEFAULT_CAMERA_NAME);
     _cameras.setName(camera_name.c_str()).restore();
     if (_cameras.size() == 0)
 	throw std::runtime_error("No cameras found.");
     _n = _cameras.size();				// Select all cameras.
-
-  // Set maximum skew allowed for synchronizing multiple cameras.
-    _nh.param("max_skew", _max_skew, 0);
-
-  // Set whether converting color formats to RGB or not.
-    _nh.param("convert_to_rgb", _convert_to_rgb, false);
-
-  // Set rate.
-    _nh.param("rate", _rate, 100.0);
 
   // Create publishers.
     for (size_t i = 0; i < _cameras.size(); ++i)
@@ -153,24 +137,26 @@ CameraArrayNode<CAMERAS>::CameraArrayNode(const std::string& name)
     }
 
   // Setup dynamic reconfigure
-    _reconf_server.addParam(CONTINUOUS_SHOT,
-			    "continuous_shot",
-			    "Start/stop streaming images",
-			    true);
+    _ddr.registerVariable<bool>("continuous_shot", true,
+				boost::bind(
+				    &CameraArrayNode::continuous_shot_cb,
+				    this, _1),
+				"Start/stop streaming images");
     if (_cameras.size() > 1)
     {
-	ReconfServer::Enums	enums;
+	std::map<std::string, int>	enums;
 	for (size_t i = 0; i < _cameras.size(); ++i)
-	    enums.add("camera" + std::to_string(i), i);
-	enums.add("all", _cameras.size());
-	enums.end();
-	_reconf_server.addParam(SELECT_CAMERA,
-				"select_camera",
-				"Select camera to be controlled.",
-				enums, _n);
+	    enums.emplace("camera" + std::to_string(i), i);
+	enums.emplace("all", _cameras.size());
+	_ddr.registerEnumVariable<int>("select_camera", _n,
+				       boost::bind(
+					   &CameraArrayNode::select_camera_cb,
+					   this, _1),
+				       "Select camera to be controlled.",
+				       enums);
     }
     add_parameters();
-    _reconf_server.setCallback(boost::bind(&reconf_callback, this, _1, _2));
+    _ddr.publishServicesTopics();
 
   // Embed timestamp in images. (only for PointGrey's IIDC cameras)
     embed_timestamp(true);
@@ -217,8 +203,8 @@ CameraArrayNode<CAMERAS>::rate() const
 }
 
 template <class CAMERAS> bool
-CameraArrayNode<CAMERAS>::one_shot_callback(std_srvs::Trigger::Request&  req,
-					    std_srvs::Trigger::Response& res)
+CameraArrayNode<CAMERAS>::one_shot_cb(std_srvs::Trigger::Request&  req,
+				      std_srvs::Trigger::Response& res)
 {
     res.success = false;
     res.message = "one_shot is not supported.";
@@ -228,49 +214,16 @@ CameraArrayNode<CAMERAS>::one_shot_callback(std_srvs::Trigger::Request&  req,
 }
 
 template <class CAMERAS> void
-CameraArrayNode<CAMERAS>::reconf_callback(
-    const ReconfServer::Params& new_params,
-    const ReconfServer::Params& old_params)
+CameraArrayNode<CAMERAS>::continuous_shot_cb(bool enable)
 {
-    bool	refresh = false;
-    auto	old_param = old_params.begin();
-    for (const auto& new_param : new_params)
-    {
-	if (*new_param != **old_param)
-	{
-	    ROS_DEBUG_STREAM(*new_param);
+    for (auto& camera : _cameras)
+	camera.continuousShot(enable);
+}
 
-	    switch (new_param->level)
-	    {
-	      case CONTINUOUS_SHOT:
-		for (auto& camera : _cameras)
-		    camera.continuousShot(new_param->value<bool>());
-		break;
-
-	      case SELECT_CAMERA:
-		_n = new_param->value<int>();
-		refresh = true;
-		break;
-
-	      default:
-		if (_n < _cameras.size())
-		    set_feature(_cameras[_n], *new_param);
-		else
-		    for (auto& camera : _cameras)
-			set_feature(camera, *new_param);
-		break;
-	    }
-	}
-
-	++old_param;
-    }
-
-    if (refresh)
-    {
-	for (const auto& new_param : new_params)
-	    if (new_param->level != SELECT_CAMERA && _n < _cameras.size())
-		get_feature(_cameras[_n], *new_param);
-    }
+template <class CAMERAS> void
+CameraArrayNode<CAMERAS>::select_camera_cb(int idx)
+{
+    _n = idx;
 }
 
 template <class CAMERAS> void
@@ -407,10 +360,9 @@ class CameraArrayNodelet : public nodelet::Nodelet
     CameraArrayNodelet()						{}
 
     virtual void	onInit()					;
-    void		timer_callback(const ros::TimerEvent&)		;
+    void		timer_cb(const ros::TimerEvent&)		;
 
   private:
-    ros::NodeHandle					_nh;
     boost::shared_ptr<CameraArrayNode<CAMERAS> >	_node;
     ros::Timer						_timer;
 };
@@ -420,15 +372,15 @@ CameraArrayNodelet<CAMERAS>::onInit()
 {
     NODELET_INFO("CameraArrayNodeklet<CAMERAS>::onInit()");
 
-    _nh = getNodeHandle();
-    _node.reset(new CameraArrayNode<CAMERAS>(getName()));
-    _timer = _nh.createTimer(ros::Duration(1.0/_node->rate()),
-			     &CameraArrayNodelet::timer_callback, this);
+    const auto	nh = getPrivateNodeHandle();
+    _node.reset(new CameraArrayNode<CAMERAS>(nh));
+    _timer = nh.createTimer(ros::Duration(1.0/_node->rate()),
+			    &CameraArrayNodelet::timer_cb, this);
 
 }
 
 template <class CAMERAS> void
-CameraArrayNodelet<CAMERAS>::timer_callback(const ros::TimerEvent&)
+CameraArrayNodelet<CAMERAS>::timer_cb(const ros::TimerEvent&)
 {
     _node->tick();
 }

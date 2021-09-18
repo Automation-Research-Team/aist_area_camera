@@ -14,74 +14,80 @@ template <> void
 CameraArrayNode<V4L2CameraArray>::add_parameters()
 {
     const auto&	camera = _cameras[0];
-
+    
   // Add pixel format commands.
-    const auto		pixelFormats = camera.availablePixelFormats();
-
-    BOOST_FOREACH (auto pixelFormat, pixelFormats)
+    BOOST_FOREACH (auto pixelFormat, camera.availablePixelFormats())
     {
-	const auto	parent = _reconf_server.addGroup(
-					camera.getName(pixelFormat));
-
-	ReconfServer::Enums	enums;
-	int			idx     = 0;
-	int			current = 0;
-	BOOST_FOREACH (const auto& frameSize,
-		       camera.availableFrameSizes(pixelFormat))
-	{
-	    enums.add(frameSize, idx);
-
-	    if (camera.pixelFormat() == pixelFormat	 &&
+	std::map<std::string, int>	enums;
+        int				idx     = 0;
+        int				current = 0;
+        BOOST_FOREACH (const auto& frameSize,
+                       camera.availableFrameSizes(pixelFormat))
+        {
+	    std::ostringstream	s;
+	    s << frameSize;
+	    enums.emplace(s.str(), idx);
+	    
+	    if (camera.pixelFormat() == pixelFormat      &&
 		frameSize.width.involves(camera.width()) &&
 		frameSize.height.involves(camera.height()))
 		current = idx;
 
 	    ++idx;
-	}
-	enums.end();
+        }
 
-	_reconf_server.addParam(pixelFormat, "Frame Size", "Select frame size.",
-				enums, current, parent);
+        _ddr.registerEnumVariable<int>(
+	    V4L2Camera::getShortName(pixelFormat), current,
+	    boost::bind(&CameraArrayNode::set_feature_cb<int>,
+			this, pixelFormat, _1),
+	    "Select frame size.", enums);
     }
 
   // Add feature commands.
     BOOST_FOREACH (auto feature, camera.availableFeatures())
     {
-	const auto	name	  = camera.getName(feature);
+	const auto	name = V4L2Camera::getShortName(feature);
 	const auto	menuItems = camera.availableMenuItems(feature);
-
+	
 	if (menuItems.first == menuItems.second)
 	{
 	    int	min, max, step;
 	    camera.getMinMaxStep(feature, min, max, step);
 
 	    if (min == 0 && max == 1)	// toglle button
-		_reconf_server.addParam(feature, name, name,
-					camera.getValue(feature));
+		_ddr.registerVariable<bool>(
+		    name, camera.getValue(feature),
+		    boost::bind(&CameraArrayNode::set_feature_cb<bool>,
+				this, feature, _1),
+		    camera.getName(feature));
 	    else			// slider
-		_reconf_server.addParam<int>(feature, name, name, min, max,
-					     camera.getValue(feature));
+		_ddr.registerVariable<int>(
+		    name, camera.getValue(feature),
+		    boost::bind(&CameraArrayNode::set_feature_cb<int>,
+				this, feature, _1),
+		    camera.getName(feature), min, max);
 	}
 	else				// menu button
 	{
-	    ReconfServer::Enums	enums;
+	    std::map<std::string, int>	enums;
 	    BOOST_FOREACH (const auto& menuItem, menuItems)
 	    {
-		enums.add(menuItem.name, menuItem.index);
+		enums.emplace(menuItem.name, menuItem.index);
 	    }
-	    enums.end();
 
-	    _reconf_server.addParam(feature, name, name, enums,
-				    camera.getValue(feature));
+	    _ddr.registerEnumVariable<int>(
+		name, camera.getValue(feature),
+		boost::bind(&CameraArrayNode::set_feature_cb<int>,
+			    this, feature, _1),
+		camera.getName(feature), enums);
 	}
     }
 }
 
-template <> void
-CameraArrayNode<V4L2CameraArray>::set_feature(
-    camera_t& camera, const ReconfServer::Param& param) const
+template <> template <class T> void
+CameraArrayNode<V4L2CameraArray>::set_feature_cb(int feature, T val)
 {
-    switch (param.level)
+    switch (feature)
     {
       case V4L2Camera::BGR24:
       case V4L2Camera::RGB24:
@@ -97,61 +103,19 @@ CameraArrayNode<V4L2CameraArray>::set_feature(
 #ifdef V4L2_PIX_FMT_SRGGB8
       case V4L2Camera::SRGGB8:
 #endif
-	TU::setFormat(camera, param.level, param.value<int>());
+	if (_n < _cameras.size())
+	    TU::setFormat(_cameras[_n], feature, val);
+	else
+	    for (auto& camera : _cameras)
+		TU::setFormat(camera, feature, val);
 	break;
 
       default:
-	if (param.type_info() == typeid(bool))
-	    TU::setFeature(camera, param.level, param.value<bool>());
-	else if (param.type_info() == typeid(int))
-	    TU::setFeature(camera, param.level, param.value<int>());
-	break;
-    }
-}
-
-template <> void
-CameraArrayNode<V4L2CameraArray>::get_feature(
-    const camera_t& camera, ReconfServer::Param& param) const
-{
-    switch (param.level)
-    {
-      case V4L2Camera::BGR24:
-      case V4L2Camera::RGB24:
-      case V4L2Camera::BGR32:
-      case V4L2Camera::RGB32:
-      case V4L2Camera::GREY:
-      case V4L2Camera::Y16:
-      case V4L2Camera::YUYV:
-      case V4L2Camera::UYVY:
-      case V4L2Camera::SBGGR8:
-      case V4L2Camera::SGBRG8:
-      case V4L2Camera::SGRBG8:
-#ifdef V4L2_PIX_FMT_SRGGB8
-      case V4L2Camera::SRGGB8:
-#endif
-      {
-	const auto pixelFormat = V4L2Camera::uintToPixelFormat(param.level);
-
-	int	idx = 0;
-	BOOST_FOREACH (const auto& frameSize,
-		       camera.availableFrameSizes(pixelFormat))
-	{
-	    if (camera.pixelFormat() == pixelFormat	 &&
-		frameSize.width.involves(camera.width()) &&
-		frameSize.height.involves(camera.height()))
-		param.setValue(idx);
-	    ++idx;
-	}
-      }
-	break;
-
-      default:
-	if (param.type_info() == typeid(bool))
-	    param.setValue(bool(camera.getValue(
-				    V4L2Camera::uintToFeature(param.level))));
-	else if (param.type_info() == typeid(int))
-	    param.setValue(int(camera.getValue(
-				   V4L2Camera::uintToFeature(param.level))));
+	if (_n < _cameras.size())
+	    TU::setFeature(_cameras[_n], feature, val);
+	else
+	    for (auto& camera : _cameras)
+		TU::setFeature(camera, feature, val);
 	break;
     }
 }

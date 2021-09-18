@@ -1,20 +1,47 @@
 <launch>
-  <arg name="camera_name"	default="V4L2Camera"/>
+
+  <arg name="camera_name"	default="v4l2_camera"/>
   <arg name="max_skew"		default="0"/>
   <arg name="convert_to_rgb"	default="false"/>
   <arg name="rate"		default="100"/>
+  <arg name="manager"		default=""/>
+  <arg name="manager_threads"	default="4"/>
 
-  <node name="$(arg camera_name)"
-  	pkg="v4l2_camera" type="v4l2_camera" output="screen">
-    <param name="max_skew"		value="$(arg max_skew)"/>
-    <param name="convert_to_rgb"	value="$(arg convert_to_rgb)"/>
-    <param name="rate"			value="$(arg rate)"/>
-  </node>
+  <group if="$(eval manager == '')">
+    <node name="$(arg camera_name)"
+  	  pkg="v4l2_camera" type="v4l2_camera" output="screen">
+      <param name="max_skew"		value="$(arg max_skew)"/>
+      <param name="convert_to_rgb"	value="$(arg convert_to_rgb)"/>
+      <param name="rate"		value="$(arg rate)"/>
+    </node>
 
-  <node name="image_view"
-	pkg = "image_view" type="image_view" output="screen">
-    <remap from="/image"	to="/$(arg camera_name)/camera0/image"/>
-  </node>
+    <node name="image_view"
+	  pkg = "image_view" type="image_view" output="screen">
+      <remap from="/image"	to="/$(arg camera_name)/camera0/image"/>
+    </node>
+  </group>
+  
+  <group unless="$(eval manager == '')">
+    <node name="$(arg manager)"
+	  pkg ="nodelet" type="nodelet" args="manager" output="screen">
+      <param name="num_worker_threads"	value="$(arg manager_threads)"/>
+    </node>
 
+    <node name="$(arg camera_name)"
+  	  pkg ="nodelet" type="nodelet"
+  	  args="load v4l2_camera/v4l2_camera_nodelet $(arg manager)">
+      <param name="max_skew"		value="$(arg max_skew)"/>
+      <param name="convert_to_rgb"	value="$(arg convert_to_rgb)"/>
+      <param name="rate"		value="$(arg rate)"/>
+    </node>
+
+    <node name="image_view"
+  	  pkg ="nodelet" type="nodelet"
+  	  args="load image_view/image $(arg manager)">
+      <remap from="image"	to="/$(arg camera_name)/camera0/image"/>
+    </node>
+  </group>
+  
   <node name="rqt_reconfigure" pkg="rqt_reconfigure" type="rqt_reconfigure"/>
+
 </launch>
