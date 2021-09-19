@@ -1,8 +1,9 @@
 <?xml version="1.0"?>
 <package format="2">
-  <name>v4l2_camera</name>
+  <name>aist_area_camera</name>
   <version>1.1.4</version>
-  <description>The v4l2_camera is a package that enables interfacing Video for Linux v.2 (V4L2) Camera from ROS</description>
+  <description>The aist_area_camera is a package that enables interfacing
+  various area cameras from ROS</description>
 
   <author>Toshio UESHIBA</author>
 

@@ -1,7 +1,7 @@
 /*!
  *  \file	main.cpp
  */
-#include "TU/CameraArrayNode.h"
+#include <aist_area_camera/CameraArrayNode.h>
 #include "TU/IIDCCameraArray.h"
 
 /************************************************************************
@@ -16,8 +16,8 @@ main(int argc, char** argv)
 
     try
     {
-	ros::NodeHandle					nh("~");
-        TU::CameraArrayNode<TU::IIDCCameraArray>	node(nh);
+	ros::NodeHandle						nh("~");
+        aist_area_camera::CameraArrayNode<TU::IIDCCameraArray>	node(nh);
         node.run();
     }
     catch (const std::exception& err)

@@ -1,6 +1,7 @@
 <launch>
 
-  <arg name="camera_name"	default="v4l2_camera"/>
+  <arg name="camera_type"	default="v4l2"/>
+  <arg name="camera_name"	default="$(arg camera_type)_camera"/>
   <arg name="max_skew"		default="0"/>
   <arg name="convert_to_rgb"	default="false"/>
   <arg name="rate"		default="100"/>
@@ -8,13 +9,6 @@
   <arg name="manager_threads"	default="4"/>
 
   <group if="$(eval manager == '')">
-    <node name="$(arg camera_name)"
-  	  pkg="v4l2_camera" type="v4l2_camera" output="screen">
-      <param name="max_skew"		value="$(arg max_skew)"/>
-      <param name="convert_to_rgb"	value="$(arg convert_to_rgb)"/>
-      <param name="rate"		value="$(arg rate)"/>
-    </node>
-
     <node name="image_view"
 	  pkg = "image_view" type="image_view" output="screen">
       <remap from="/image"	to="/$(arg camera_name)/camera0/image"/>
@@ -27,20 +21,22 @@
       <param name="num_worker_threads"	value="$(arg manager_threads)"/>
     </node>
 
-    <node name="$(arg camera_name)"
-  	  pkg ="nodelet" type="nodelet"
-  	  args="load v4l2_camera/v4l2_camera_nodelet $(arg manager)">
-      <param name="max_skew"		value="$(arg max_skew)"/>
-      <param name="convert_to_rgb"	value="$(arg convert_to_rgb)"/>
-      <param name="rate"		value="$(arg rate)"/>
-    </node>
-
     <node name="image_view"
   	  pkg ="nodelet" type="nodelet"
   	  args="load image_view/image $(arg manager)">
       <remap from="image"	to="/$(arg camera_name)/camera0/image"/>
     </node>
   </group>
+
+  <include file="$(dirname)/run.launch">
+    <arg name="camera_type"	value="$(arg camera_type)"/>
+    <arg name="camera_name"	value="$(arg camera_name)"/>
+    <arg name="max_skew"	value="$(arg max_skew)"/>
+    <arg name="convert_to_rgb"	value="$(arg convert_to_rgb)"/>
+    <arg name="rate"		value="$(arg rate)"/>
+    <arg name="manager"		value="$(arg manager)"/>
+    <arg name="manager_threads"	value="$(arg manager_threads)4"/>
+  </include>
   
   <node name="rqt_reconfigure" pkg="rqt_reconfigure" type="rqt_reconfigure"/>
 

@@ -1,8 +1,0 @@
-<library path="lib/libv4l2_camera_nodelet">
-  <class name="v4l2_camera/v4l2_camera_nodelet"
-	 type="TU::v4l2_camera_nodelet"
-	 base_class_type="nodelet::Nodelet">
-    <description>
-    </description>
-  </class>
-</library>

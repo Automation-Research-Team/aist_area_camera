@@ -1,8 +1,8 @@
 /*!
  *  \file	CameraArrayNode.h
  */
-#ifndef TU_ROS_CAMERAARRAYNODE_H
-#define TU_ROS_CAMERAARRAYNODE_H
+#ifndef AIST_AREA_CAMERA_CAMERAARRAYNODE_H
+#define AIST_AREA_CAMERA_CAMERAARRAYNODE_H
 
 #include <fstream>
 #include <chrono>
@@ -15,7 +15,7 @@
 #include "TU/Camera++.h"
 #include "TU/Image++.h"
 
-namespace TU
+namespace aist_area_camera
 {
 /************************************************************************
 *  static functions							*
@@ -26,10 +26,11 @@ fix_yuyv(void* begin, void* end)
 }
 
 template <> void
-fix_yuyv<YUYV422>(void* begin, void* end)
+fix_yuyv<TU::YUYV422>(void* begin, void* end)
 {
-    std::copy(static_cast<const YUYV422*>(begin),
-	      static_cast<const YUYV422*>(end), static_cast<YUV422*>(begin));
+    std::copy(static_cast<const TU::YUYV422*>(begin),
+	      static_cast<const TU::YUYV422*>(end),
+	      static_cast<TU::YUV422*>(begin));
 }
 
 /************************************************************************
@@ -45,8 +46,8 @@ class CameraArrayNode
     using image_p  = sensor_msgs::ImagePtr;
     using cinfo_t  = sensor_msgs::CameraInfo;
     using cinfo_p  = sensor_msgs::CameraInfoPtr;
-    using cmodel_t = Camera<IntrinsicWithDistortion<
-				 IntrinsicBase<double> > >;
+    using cmodel_t = TU::Camera<TU::IntrinsicWithDistortion<
+				    TU::IntrinsicBase<double> > >;
 
   public:
 		CameraArrayNode(const ros::NodeHandle& nh)		;
@@ -287,14 +288,15 @@ CameraArrayNode<CAMERAS>::publish(const camera_t& camera,
 		_image.resize(camera.width() * camera.height() * sizeof(T));
 		camera.captureRaw(_image.data());
 
-		constexpr auto	N = iterator_value<
-		    pixel_iterator<const T*> >::npixels;
+		constexpr auto	N = TU::iterator_value<
+		    TU::pixel_iterator<const T*> >::npixels;
 		const auto		npixels = image->width * image->height;
-		std::copy_n(make_pixel_iterator(
+		std::copy_n(TU::make_pixel_iterator(
 				reinterpret_cast<const T*>(_image.data())),
 			    npixels/N,
-			    make_pixel_iterator(
-				reinterpret_cast<RGB*>(image->data.data())));
+			    TU::make_pixel_iterator(
+				reinterpret_cast<TU::RGB*>(
+				    image->data.data())));
 	    }
 	    else
 	    {

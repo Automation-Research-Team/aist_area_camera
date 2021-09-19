@@ -2,16 +2,16 @@
  *  \file	V4L2CameraArrayNode.cpp
  */
 #include <boost/foreach.hpp>
-#include "TU/CameraArrayNode.h"
+#include <aist_area_camera/CameraArrayNode.h>
 #include "TU/V4L2CameraArray.h"
 
-namespace TU
+namespace aist_area_camera
 {
 /************************************************************************
-*  class CameraArrayNode<V4L2CameraArray>				*
+*  class CameraArrayNode<TU::V4L2CameraArray>				*
 ************************************************************************/
 template <> void
-CameraArrayNode<V4L2CameraArray>::add_parameters()
+CameraArrayNode<TU::V4L2CameraArray>::add_parameters()
 {
     const auto&	camera = _cameras[0];
     
@@ -37,7 +37,7 @@ CameraArrayNode<V4L2CameraArray>::add_parameters()
         }
 
         _ddr.registerEnumVariable<int>(
-	    V4L2Camera::getShortName(pixelFormat), current,
+	    camera_t::getShortName(pixelFormat), current,
 	    boost::bind(&CameraArrayNode::set_feature_cb<int>,
 			this, pixelFormat, _1),
 	    "Select frame size.", enums);
@@ -46,7 +46,7 @@ CameraArrayNode<V4L2CameraArray>::add_parameters()
   // Add feature commands.
     BOOST_FOREACH (auto feature, camera.availableFeatures())
     {
-	const auto	name = V4L2Camera::getShortName(feature);
+	const auto	name = camera_t::getShortName(feature);
 	const auto	menuItems = camera.availableMenuItems(feature);
 	
 	if (menuItems.first == menuItems.second)
@@ -85,23 +85,23 @@ CameraArrayNode<V4L2CameraArray>::add_parameters()
 }
 
 template <> template <class T> void
-CameraArrayNode<V4L2CameraArray>::set_feature_cb(int feature, T val)
+CameraArrayNode<TU::V4L2CameraArray>::set_feature_cb(int feature, T val)
 {
     switch (feature)
     {
-      case V4L2Camera::BGR24:
-      case V4L2Camera::RGB24:
-      case V4L2Camera::BGR32:
-      case V4L2Camera::RGB32:
-      case V4L2Camera::GREY:
-      case V4L2Camera::Y16:
-      case V4L2Camera::YUYV:
-      case V4L2Camera::UYVY:
-      case V4L2Camera::SBGGR8:
-      case V4L2Camera::SGBRG8:
-      case V4L2Camera::SGRBG8:
+      case camera_t::BGR24:
+      case camera_t::RGB24:
+      case camera_t::BGR32:
+      case camera_t::RGB32:
+      case camera_t::GREY:
+      case camera_t::Y16:
+      case camera_t::YUYV:
+      case camera_t::UYVY:
+      case camera_t::SBGGR8:
+      case camera_t::SGBRG8:
+      case camera_t::SGRBG8:
 #ifdef V4L2_PIX_FMT_SRGGB8
-      case V4L2Camera::SRGGB8:
+      case camera_t::SRGGB8:
 #endif
 	if (_n < _cameras.size())
 	    TU::setFormat(_cameras[_n], feature, val);
@@ -121,53 +121,55 @@ CameraArrayNode<V4L2CameraArray>::set_feature_cb(int feature, T val)
 }
 
 template <> void
-CameraArrayNode<V4L2CameraArray>::publish(
+CameraArrayNode<TU::V4L2CameraArray>::publish(
     const camera_t& camera, const header_t& header, const cmodel_t& cmodel,
     const image_transport::CameraPublisher& pub) const
 {
     using namespace	sensor_msgs;
-
+    
     switch (camera.pixelFormat())
     {
-      case V4L2Camera::BGR24:
-	publish<BGR>(camera, header, cmodel, pub, image_encodings::BGR8);
+      case camera_t::BGR24:
+	publish<TU::BGR>(camera, header, cmodel, pub, image_encodings::BGR8);
 	break;
-      case V4L2Camera::RGB24:
-	publish<RGB>(camera, header, cmodel, pub, image_encodings::RGB8);
+      case camera_t::RGB24:
+	publish<TU::RGB>(camera, header, cmodel, pub, image_encodings::RGB8);
 	break;
-      case V4L2Camera::BGR32:
-	publish<BGRA>(camera, header, cmodel, pub, image_encodings::BGRA8);
+      case camera_t::BGR32:
+	publish<TU::BGRA>(camera, header, cmodel, pub, image_encodings::BGRA8);
 	break;
-      case V4L2Camera::RGB32:
-	publish<ARGB>(camera, header, cmodel, pub, image_encodings::RGBA8);
+      case camera_t::RGB32:
+	publish<TU::ARGB>(camera, header, cmodel, pub, image_encodings::RGBA8);
 	break;
-      case V4L2Camera::GREY:
+      case camera_t::GREY:
 	publish<uint8_t>(camera, header, cmodel, pub, image_encodings::MONO8);
 	break;
-      case V4L2Camera::Y16:
+      case camera_t::Y16:
 	publish<uint16_t>(camera, header, cmodel, pub,
 			  image_encodings::MONO16);
 	break;
-      case V4L2Camera::YUYV:
-	publish<YUYV422>(camera, header, cmodel, pub, image_encodings::YUV422);
+      case camera_t::YUYV:
+	publish<TU::YUYV422>(camera, header, cmodel, pub,
+			     image_encodings::YUV422);
 	break;
-      case V4L2Camera::UYVY:
-	publish<YUV422>(camera, header, cmodel, pub, image_encodings::YUV422);
+      case camera_t::UYVY:
+	publish<TU::YUV422>(camera, header, cmodel, pub,
+			    image_encodings::YUV422);
 	break;
-      case V4L2Camera::SBGGR8:
+      case camera_t::SBGGR8:
 	publish<uint8_t>(camera, header, cmodel, pub,
 			 image_encodings::BAYER_BGGR8);
 	break;
-      case V4L2Camera::SGBRG8:
+      case camera_t::SGBRG8:
 	publish<uint8_t>(camera, header, cmodel, pub,
 			 image_encodings::BAYER_GBRG8);
 	break;
-      case V4L2Camera::SGRBG8:
+      case camera_t::SGRBG8:
 	publish<uint8_t>(camera, header, cmodel, pub,
 			 image_encodings::BAYER_GRBG8);
 	break;
 #ifdef V4L2_PIX_FMT_SRGGB8
-      case V4L2Camera::SRGGB8:
+      case camera_t::SRGGB8:
 	publish<uint8_t>(camera, header, cmodel, pub,
 			 image_encodings::BAYER_RGGB8);
 	break;

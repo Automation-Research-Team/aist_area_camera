@@ -1,19 +1,19 @@
 /*!
  *  \file	IIDCCameraArrayNode.cpp
  */
-#include "TU/CameraArrayNode.h"
+#include <aist_area_camera/CameraArrayNode.h>
 #include "TU/IIDCCameraArray.h"
 
-namespace TU
+namespace aist_area_camera
 {
 constexpr static u_int	OFFSET_ABS_VAL = 0x2;
 
 /************************************************************************
-*  class CameraArrayNode<IIDCCameraArray>				*
+*  class CameraArrayNode<TU::IIDCCameraArray>				*
 ************************************************************************/
 template <> bool
-CameraArrayNode<IIDCCameraArray>::one_shot_cb(std_srvs::Trigger::Request&  req,
-					      std_srvs::Trigger::Response& res)
+CameraArrayNode<TU::IIDCCameraArray>::one_shot_cb(
+    std_srvs::Trigger::Request&  req, std_srvs::Trigger::Response& res)
 {
     if (_cameras[0].inContinuousShot())
     {
@@ -35,25 +35,25 @@ CameraArrayNode<IIDCCameraArray>::one_shot_cb(std_srvs::Trigger::Request&  req,
 }
 
 template <> void
-CameraArrayNode<IIDCCameraArray>::embed_timestamp(bool enable)
+CameraArrayNode<TU::IIDCCameraArray>::embed_timestamp(bool enable)
 {
     for (auto& camera : _cameras)
 	camera.embedTimestamp(enable);
 }
     
 template <> void
-CameraArrayNode<IIDCCameraArray>::add_parameters()
+CameraArrayNode<TU::IIDCCameraArray>::add_parameters()
 {
     const auto&	camera = _cameras[0];
 
   // Add format commands.
-    for (const auto& formatName : IIDCCamera::formatNames)
+    for (const auto& formatName : camera_t::formatNames)
     {
 	const auto	inq = camera.inquireFrameRate(formatName.format);
 
 	std::map<std::string, int>	enums;
-	IIDCCamera::FrameRate		frameRate;
-	for (const auto& frameRateName : IIDCCamera::frameRateNames)
+	camera_t::FrameRate	frameRate;
+	for (const auto& frameRateName : camera_t::frameRateNames)
 	    if (inq & frameRateName.frameRate)
 	    {
 		enums.emplace(frameRateName.name, frameRateName.frameRate);
@@ -74,23 +74,25 @@ CameraArrayNode<IIDCCameraArray>::add_parameters()
     }
 
   // Add feature commands.
-    for (const auto& featureName : IIDCCamera::featureNames)
+    for (const auto& featureName : camera_t::featureNames)
     {
+	using namespace	TU;
+	
 	const auto	feature	= featureName.feature;
 	const auto	name	= std::string(featureName.name);
 	const auto	inq	= camera.inquireFeatureFunction(feature);
 
-	if (!((inq & IIDCCamera::Presence) &&
-	      (inq & IIDCCamera::Manual)   &&
-	      (inq & IIDCCamera::ReadOut)))
+	if (!((inq & camera_t::Presence) &&
+	      (inq & camera_t::Manual)   &&
+	      (inq & camera_t::ReadOut)))
 	    continue;
 
 	switch (feature)
 	{
-	  case IIDCCamera::TRIGGER_MODE:
+	  case camera_t::TRIGGER_MODE:
 	  {
 	    std::map<std::string, int>	enums;
-	    for (const auto& triggerModeName : IIDCCamera::triggerModeNames)
+	    for (const auto& triggerModeName : camera_t::triggerModeNames)
 		if (inq & triggerModeName.triggerMode)
 		    enums.emplace(triggerModeName.name,
 				  triggerModeName.triggerMode);
@@ -103,7 +105,7 @@ CameraArrayNode<IIDCCameraArray>::add_parameters()
 	  }
 	    break;
 
-	  case IIDCCamera::WHITE_BALANCE:
+	  case camera_t::WHITE_BALANCE:
 	  {
 	    u_int	min, max;
 	    camera.getMinMax(feature, min, max);
@@ -121,7 +123,7 @@ CameraArrayNode<IIDCCameraArray>::add_parameters()
 			    this, feature + IIDCCAMERA_OFFSET_VR, _1),
 		"White bal.(V/R)", min, max);
 
-	    if (inq & IIDCCamera::Abs_Control)
+	    if (inq & camera_t::Abs_Control)
 	    {
 		float	min, max;
 		camera.getMinMax(feature, min, max);
@@ -137,7 +139,8 @@ CameraArrayNode<IIDCCameraArray>::add_parameters()
 		    "Abs_VR", vr,
 		    boost::bind(&CameraArrayNode::set_feature_cb<double>,
 				this,
-				feature + IIDCCAMERA_OFFSET_VR+OFFSET_ABS_VAL,
+				feature + IIDCCAMERA_OFFSET_VR
+					+ OFFSET_ABS_VAL,
 				_1),
 		    "White bal.(V/R)", min, max);
 	    }
@@ -154,7 +157,7 @@ CameraArrayNode<IIDCCameraArray>::add_parameters()
 			    this, feature, _1),
 		name, min, max);
 
-	    if (inq & IIDCCamera::Abs_Control)
+	    if (inq & camera_t::Abs_Control)
 	    {
 		float	min, max;
 		camera.getMinMax(feature, min, max);
@@ -168,41 +171,41 @@ CameraArrayNode<IIDCCameraArray>::add_parameters()
 	    break;
 	}
 
-	if (inq & IIDCCamera::OnOff)
+	if (inq & camera_t::OnOff)
 	    _ddr.registerVariable<bool>(
 		name + "_OnOff", camera.isActive(feature),
-		boost::bind(&CameraArrayNode::set_feature_cb<bool>,
-			    this, feature + IIDCCAMERA_OFFSET_ONOFF, _1),
+		boost::bind(&CameraArrayNode::set_feature_cb<bool>, this,
+			    feature + IIDCCAMERA_OFFSET_ONOFF, _1),
 		"Feature is enabled.");
 
-	if (inq & IIDCCamera::Auto)
-	    if (feature == IIDCCamera::TRIGGER_MODE)
+	if (inq & camera_t::Auto)
+	    if (feature == camera_t::TRIGGER_MODE)
 		_ddr.registerVariable<bool>(
 		    name + "_Positive", camera.getTriggerPolarity(),
-		    boost::bind(&CameraArrayNode::set_feature_cb<bool>,
-				this, feature + IIDCCAMERA_OFFSET_AUTO, _1),
+		    boost::bind(&CameraArrayNode::set_feature_cb<bool>, this,
+				feature + IIDCCAMERA_OFFSET_AUTO, _1),
 		    "Positive trigger polarity");
 	    else
 		_ddr.registerVariable<bool>(
 		    name + "_Auto", camera.isAuto(feature),
-		    boost::bind(&CameraArrayNode::set_feature_cb<bool>,
-				this, feature + IIDCCAMERA_OFFSET_AUTO, _1),
+		    boost::bind(&CameraArrayNode::set_feature_cb<bool>, this,
+				feature + IIDCCAMERA_OFFSET_AUTO, _1),
 		    "Feature value is set automatically.");
 
-	if (inq & IIDCCamera::Abs_Control)
+	if (inq & camera_t::Abs_Control)
 	    _ddr.registerVariable<bool>(
 		name + "_Abs", camera.isAbsControl(feature),
-		boost::bind(&CameraArrayNode::set_feature_cb<bool>,
-			    this, feature + IIDCCAMERA_OFFSET_ABS, _1),
+		boost::bind(&CameraArrayNode::set_feature_cb<bool>, this,
+			    feature + IIDCCAMERA_OFFSET_ABS, _1),
 		"Feature value is specified in an absolute one.");
     }
 }
 
 template <> template <class T> void
-CameraArrayNode<IIDCCameraArray>::set_feature_cb(int feature, T val)
+CameraArrayNode<TU::IIDCCameraArray>::set_feature_cb(int feature, T val)
 {
-    if (feature >= IIDCCamera::YUV444_160x120 &&
-	feature <= IIDCCamera::Format_7_7)
+    if (feature >= camera_t::YUV444_160x120 &&
+	feature <= camera_t::Format_7_7)
     {
 	if (_n < _cameras.size())
 	    TU::setFormat(_cameras[_n], feature, val);
@@ -254,30 +257,30 @@ CameraArrayNode<IIDCCameraArray>::set_feature_cb(int feature, T val)
 }
 
 template <> void
-CameraArrayNode<IIDCCameraArray>::publish(
+CameraArrayNode<TU::IIDCCameraArray>::publish(
     const camera_t& camera, const header_t& header, const cmodel_t& cmodel,
     const image_transport::CameraPublisher& pub) const
 {
     using namespace	sensor_msgs;
-
+    
     switch (camera.pixelFormat())
     {
-      case IIDCCamera::MONO_8:
+      case camera_t::MONO_8:
 	switch (camera.bayerTileMapping())
 	{
-	  case IIDCCamera::RGGB:
+	  case camera_t::RGGB:
 	    publish<uint8_t>(camera, header, cmodel, pub,
 			     image_encodings::BAYER_RGGB8);
 	    break;
-	  case IIDCCamera::BGGR:
+	  case camera_t::BGGR:
 	    publish<uint8_t>(camera, header, cmodel, pub,
 			     image_encodings::BAYER_BGGR8);
 	    break;
-	  case IIDCCamera::GRBG:
+	  case camera_t::GRBG:
 	    publish<uint8_t>(camera, header, cmodel, pub,
 			     image_encodings::BAYER_GRBG8);
 	    break;
-	  case IIDCCamera::GBRG:
+	  case camera_t::GBRG:
 	    publish<uint8_t>(camera, header, cmodel, pub,
 			     image_encodings::BAYER_GBRG8);
 	    break;
@@ -288,34 +291,37 @@ CameraArrayNode<IIDCCameraArray>::publish(
 	}
 	break;
 
-      case IIDCCamera::RAW_8:
+      case camera_t::RAW_8:
 	publish<uint8_t>(camera, header, cmodel, pub, image_encodings::MONO8);
 	break;
 
-      case IIDCCamera::YUV_411:
-	publish<YUV411>(camera, header, cmodel, pub, image_encodings::YUV422);
+      case camera_t::YUV_411:
+	publish<TU::YUV411>(camera, header, cmodel, pub,
+			    image_encodings::YUV422);
 	break;
 
-      case IIDCCamera::MONO_16:
-      case IIDCCamera::RAW_16:
+      case camera_t::MONO_16:
+      case camera_t::RAW_16:
 	publish<uint16_t>(camera, header, cmodel, pub,
 			  image_encodings::MONO16);
 	break;
 
-      case IIDCCamera::SIGNED_MONO_16:
+      case camera_t::SIGNED_MONO_16:
 	publish<int16_t>(camera, header, cmodel, pub, image_encodings::MONO16);
 	break;
 
-      case IIDCCamera::YUV_422:
-	publish<YUYV422>(camera, header, cmodel, pub, image_encodings::YUV422);
+      case camera_t::YUV_422:
+	publish<TU::YUYV422>(camera, header, cmodel, pub,
+			     image_encodings::YUV422);
 	break;
 
-      case IIDCCamera::YUV_444:
-	publish<YUV444>(camera, header, cmodel, pub, image_encodings::YUV422);
+      case camera_t::YUV_444:
+	publish<TU::YUV444>(camera, header, cmodel, pub,
+			    image_encodings::YUV422);
 	break;
 
-      case IIDCCamera::RGB_24:
-	publish<RGB>(camera, header, cmodel, pub, image_encodings::RGB8);
+      case camera_t::RGB_24:
+	publish<TU::RGB>(camera, header, cmodel, pub, image_encodings::RGB8);
 	break;
 
       default:

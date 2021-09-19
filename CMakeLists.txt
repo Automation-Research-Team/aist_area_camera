@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 2.8.12)
-project(v4l2_camera)
+project(aist_area_camera)
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "/usr/local/share/cmake/TU")
 
@@ -35,19 +35,19 @@ add_compile_options(-fpermissive)
 add_compile_options(-pthread)
 
 add_executable(
-  ${PROJECT_NAME}
-  src/main.cpp
+  v4l2_camera
+  src/v4l2_camera.cpp
   src/V4L2CameraArrayNode.cpp
 )
 
 add_dependencies(
-  ${PROJECT_NAME}
+  v4l2_camera
   ${${PROJECT_NAME}_EXPORTED_TARGETS}
   ${catkin_EXPORTED_TARGETS}
 )
 
 target_link_libraries(
-  ${PROJECT_NAME}
+  v4l2_camera
   debug ${catkin_LIBRARIES}
   optimized ${catkin_LIBRARIES}
   ${Boost_LIBRARIES}
@@ -56,19 +56,19 @@ target_link_libraries(
 )
 
 add_library(
-  ${PROJECT_NAME}_nodelet
-  src/nodelet.cpp
+  v4l2_camera_nodelet
+  src/v4l2_nodelet.cpp
   src/V4L2CameraArrayNode.cpp
 )
 
 add_dependencies(
-  ${PROJECT_NAME}_nodelet
+  v4l2_camera_nodelet
   ${${PROJECT_NAME}_EXPORTED_TARGETS}
   ${catkin_EXPORTED_TARGETS}
 )
 
 target_link_libraries(
-  ${PROJECT_NAME}_nodelet
+  v4l2_camera_nodelet
   debug ${catkin_LIBRARIES}
   optimized ${catkin_LIBRARIES}
   ${Boost_LIBRARIES}
@@ -76,9 +76,51 @@ target_link_libraries(
   ${TUTOOLSPP_LIB}
 )
 
+add_executable(
+  iidc_camera
+  src/iidc_camera.cpp
+  src/IIDCCameraArrayNode.cpp
+)
+
+add_dependencies(
+  iidc_camera
+  ${${PROJECT_NAME}_EXPORTED_TARGETS}
+  ${catkin_EXPORTED_TARGETS}
+)
+
+target_link_libraries(
+  iidc_camera
+  debug ${catkin_LIBRARIES}
+  optimized ${catkin_LIBRARIES}
+  ${Boost_LIBRARIES}
+  ${TUIIDCPP_LIB}
+  ${TUTOOLSPP_LIB}
+)
+
+add_library(
+  iidc_camera_nodelet
+  src/iidc_nodelet.cpp
+  src/IIDCCameraArrayNode.cpp
+)
+
+add_dependencies(
+  iidc_camera_nodelet
+  ${${PROJECT_NAME}_EXPORTED_TARGETS}
+  ${catkin_EXPORTED_TARGETS}
+)
+
+target_link_libraries(
+  iidc_camera_nodelet
+  debug ${catkin_LIBRARIES}
+  optimized ${catkin_LIBRARIES}
+  ${Boost_LIBRARIES}
+  ${TUIIDCPP_LIB}
+  ${TUTOOLSPP_LIB}
+)
+
 install(
   TARGETS
-    ${PROJECT_NAME} ${PROJECT_NAME}_nodelet
+    v4l2_camera v4l2_camera_nodelet iidc_camera iidc_camera_nodelet
   ARCHIVE
     DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY
