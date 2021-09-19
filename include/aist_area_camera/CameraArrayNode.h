@@ -372,7 +372,7 @@ class CameraArrayNodelet : public nodelet::Nodelet
 template <class CAMERAS> void
 CameraArrayNodelet<CAMERAS>::onInit()
 {
-    NODELET_INFO("CameraArrayNodeklet<CAMERAS>::onInit()");
+    NODELET_INFO("CameraArrayNodelet<CAMERAS>::onInit()");
 
     const auto	nh = getPrivateNodeHandle();
     _node.reset(new CameraArrayNode<CAMERAS>(nh));
