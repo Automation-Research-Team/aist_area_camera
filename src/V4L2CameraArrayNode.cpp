@@ -180,4 +180,4 @@ CameraArrayNode<TU::V4L2CameraArray>::publish(
     }
 }
 
-}	// namespace TU
+}	// namespace aist_area_camera

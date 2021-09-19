@@ -1,5 +1,5 @@
 /*!
- *  \file	nodelet.cpp
+ *  \file	iidc_nodelet.cpp
  */
 #include <aist_area_camera/CameraArrayNode.h>
 #include <pluginlib/class_list_macros.h>

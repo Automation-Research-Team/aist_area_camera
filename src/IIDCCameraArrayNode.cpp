@@ -330,4 +330,4 @@ CameraArrayNode<TU::IIDCCameraArray>::publish(
     }
 }
 
-}	// namespace TU
+}	// namespace aist_area_camera

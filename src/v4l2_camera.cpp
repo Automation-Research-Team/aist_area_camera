@@ -1,5 +1,5 @@
 /*!
- *  \file	main.cpp
+ *  \file	v4l2_camera.cpp
  */
 #include <aist_area_camera/CameraArrayNode.h>
 #include "TU/V4L2CameraArray.h"

@@ -1,5 +1,5 @@
 /*!
- *  \file	main.cpp
+ *  \file	iidc_camera.cpp
  */
 #include <aist_area_camera/CameraArrayNode.h>
 #include "TU/IIDCCameraArray.h"

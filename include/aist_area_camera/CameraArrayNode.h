@@ -387,5 +387,5 @@ CameraArrayNodelet<CAMERAS>::timer_cb(const ros::TimerEvent&)
     _node->tick();
 }
 
-}	// namespace TU
-#endif	// !TU_ROS_CAMERAARRAYNODE_H
+}	// namespace aist_area_camera
+#endif	// !AIST_AREA_CAMERA_CAMERAARRAYNODE_H
