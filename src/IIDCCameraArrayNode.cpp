@@ -9,6 +9,27 @@ namespace aist_area_camera
 constexpr static u_int	OFFSET_ABS_VAL = 0x2;
 
 /************************************************************************
+*  static functions							*
+************************************************************************/
+static void
+set_feature(TU::IIDCCamera& camera, int feature, int val)
+{
+    u_int	uval;
+    float	fval;
+    TU::getFeature(camera, feature - OFFSET_ABS_VAL, uval, fval);
+    TU::setFeature(camera, feature - OFFSET_ABS_VAL, val,  fval);
+}
+    
+static void
+set_feature(TU::IIDCCamera& camera, int feature, double val)
+{
+    u_int	uval;
+    float	fval;
+    TU::getFeature(camera, feature, uval, fval);
+    TU::setFeature(camera, feature, uval, val);
+}
+    
+/************************************************************************
 *  class CameraArrayNode<TU::IIDCCameraArray>				*
 ************************************************************************/
 template <> bool
@@ -66,10 +87,10 @@ CameraArrayNode<TU::IIDCCameraArray>::add_parameters()
 		frameRate = camera.getFrameRate();
 
 	    _ddr.registerEnumVariable<int>(
-		formatName.name, frameRate,
+		"frame_rate", frameRate,
 		boost::bind(&CameraArrayNode::set_feature_cb<int>,
 			    this, formatName.format, _1),
-		"Select frame rate.", enums);
+		"Select frame rate", enums, "", formatName.name);
 	}
     }
 
@@ -98,10 +119,10 @@ CameraArrayNode<TU::IIDCCameraArray>::add_parameters()
 				  triggerModeName.triggerMode);
 
 	    _ddr.registerEnumVariable<int>(
-		name, camera.getTriggerMode(),
+		"trigger_mode", camera.getTriggerMode(),
 		boost::bind(&CameraArrayNode::set_feature_cb<int>,
 			    this, feature, _1),
-		"Select trigger mode.", enums);
+		"Select trigger mode", enums, "", name);
 	  }
 	    break;
 
@@ -116,12 +137,12 @@ CameraArrayNode<TU::IIDCCameraArray>::add_parameters()
 		"UB", ub,
 		boost::bind(&CameraArrayNode::set_feature_cb<int>,
 			    this, feature, _1),
-		"White bal.(U/V)", min, max);
+		"White balance(U/V)", min, max, name);
 	    _ddr.registerVariable<int>(
 		"VR", vr,
 		boost::bind(&CameraArrayNode::set_feature_cb<int>,
 			    this, feature + IIDCCAMERA_OFFSET_VR, _1),
-		"White bal.(V/R)", min, max);
+		"White balance(V/R)", min, max, name);
 
 	    if (inq & camera_t::Abs_Control)
 	    {
@@ -131,18 +152,18 @@ CameraArrayNode<TU::IIDCCameraArray>::add_parameters()
 		camera.getWhiteBalance(ub, vr);
 
 		_ddr.registerVariable<double>(
-		    "Abs_UB", ub,
+		    "UB_Abs", ub,
 		    boost::bind(&CameraArrayNode::set_feature_cb<double>,
 				this, feature + OFFSET_ABS_VAL, _1),
-		    "White bal.(U/V)", min, max);
+		    "Absolute white balance(U/V)", min, max, name);
 		_ddr.registerVariable<double>(
-		    "Abs_VR", vr,
+		    "VR_Abs", vr,
 		    boost::bind(&CameraArrayNode::set_feature_cb<double>,
 				this,
 				feature + IIDCCAMERA_OFFSET_VR
 					+ OFFSET_ABS_VAL,
 				_1),
-		    "White bal.(V/R)", min, max);
+		    "Absolute white balance(V/R)", min, max, name);
 	    }
 	  }
 	    break;
@@ -155,7 +176,7 @@ CameraArrayNode<TU::IIDCCameraArray>::add_parameters()
 		name, camera.getValue(feature),
 		boost::bind(&CameraArrayNode::set_feature_cb<int>,
 			    this, feature, _1),
-		name, min, max);
+		"value", min, max, name);
 
 	    if (inq & camera_t::Abs_Control)
 	    {
@@ -165,7 +186,7 @@ CameraArrayNode<TU::IIDCCameraArray>::add_parameters()
 		    name + "_Abs", camera.getValue<float>(feature),
 		    boost::bind(&CameraArrayNode::set_feature_cb<double>,
 				this, feature + OFFSET_ABS_VAL, _1),
-		    name + "(abs. value)", min, max);
+		    "absolute value", min, max, name);
 	    }
 	  }
 	    break;
@@ -176,7 +197,7 @@ CameraArrayNode<TU::IIDCCameraArray>::add_parameters()
 		name + "_OnOff", camera.isActive(feature),
 		boost::bind(&CameraArrayNode::set_feature_cb<bool>, this,
 			    feature + IIDCCAMERA_OFFSET_ONOFF, _1),
-		"Feature is enabled.");
+		"Feature enabled", false, true, name);
 
 	if (inq & camera_t::Auto)
 	    if (feature == camera_t::TRIGGER_MODE)
@@ -184,20 +205,20 @@ CameraArrayNode<TU::IIDCCameraArray>::add_parameters()
 		    name + "_Positive", camera.getTriggerPolarity(),
 		    boost::bind(&CameraArrayNode::set_feature_cb<bool>, this,
 				feature + IIDCCAMERA_OFFSET_AUTO, _1),
-		    "Positive trigger polarity");
+		    "Positive polarity", false, true, name);
 	    else
 		_ddr.registerVariable<bool>(
 		    name + "_Auto", camera.isAuto(feature),
 		    boost::bind(&CameraArrayNode::set_feature_cb<bool>, this,
 				feature + IIDCCAMERA_OFFSET_AUTO, _1),
-		    "Feature value is set automatically.");
+		    "Automatically set", false, true, name);
 
 	if (inq & camera_t::Abs_Control)
 	    _ddr.registerVariable<bool>(
 		name + "_Abs", camera.isAbsControl(feature),
 		boost::bind(&CameraArrayNode::set_feature_cb<bool>, this,
 			    feature + IIDCCAMERA_OFFSET_ABS, _1),
-		"Feature value is specified in an absolute one.");
+		"In absolute values", false, true, name);
     }
 }
 
@@ -215,44 +236,11 @@ CameraArrayNode<TU::IIDCCameraArray>::set_feature_cb(int feature, T val)
     }
     else
     {
-	if (std::is_floating_point<T>::value)
-	{
-	    feature -= OFFSET_ABS_VAL;
-
-	    if (_n < _cameras.size())
-	    {
-		u_int		uval;
-		float		fval;
-		TU::getFeature(_cameras[_n], feature, uval, fval);
-		TU::setFeature(_cameras[_n], feature, uval, val);
-	    }
-	    else
-	    {
-		u_int		uval;
-		float		fval;
-		TU::getFeature(_cameras[0], feature, uval, fval);
-		for (auto& camera : _cameras)
-		    TU::setFeature(camera, feature, uval, val);
-	    }
-	}
+	if (_n < _cameras.size())
+	    set_feature(_cameras[_n], feature, val);
 	else
-	{
-	    if (_n < _cameras.size())
-	    {
-		u_int		uval;
-		float		fval;
-		TU::getFeature(_cameras[_n], feature, uval, fval);
-		TU::setFeature(_cameras[_n], feature, val,  fval);
-	    }
-	    else
-	    {
-		u_int		uval;
-		float		fval;
-		TU::getFeature(_cameras[0], feature, uval, fval);
-		for (auto& camera : _cameras)
-		    TU::setFeature(camera, feature, val, fval);
-	    }
-	}
+	    for (auto& camera : _cameras)
+		set_feature(camera, feature, val);
     }
 }
 

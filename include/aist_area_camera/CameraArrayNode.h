@@ -142,7 +142,8 @@ CameraArrayNode<CAMERAS>::CameraArrayNode(const ros::NodeHandle& nh)
 				boost::bind(
 				    &CameraArrayNode::continuous_shot_cb,
 				    this, _1),
-				"Start/stop streaming images");
+				"Start/stop streaming images", false, true,
+				"camera_control");
     if (_cameras.size() > 1)
     {
 	std::map<std::string, int>	enums;
@@ -153,8 +154,8 @@ CameraArrayNode<CAMERAS>::CameraArrayNode(const ros::NodeHandle& nh)
 				       boost::bind(
 					   &CameraArrayNode::select_camera_cb,
 					   this, _1),
-				       "Select camera to be controlled.",
-				       enums);
+				       "Select camera to be activated", enums,
+				       "", "camera_control");
     }
     add_parameters();
     _ddr.publishServicesTopics();
