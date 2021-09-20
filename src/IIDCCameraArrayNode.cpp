@@ -34,7 +34,7 @@ set_feature(TU::IIDCCamera& camera, int feature, double val)
 ************************************************************************/
 template <> bool
 CameraArrayNode<TU::IIDCCameraArray>::one_shot_cb(
-    std_srvs::Trigger::Request&  req, std_srvs::Trigger::Response& res)
+    std_srvs::Trigger::Request& req, std_srvs::Trigger::Response& res)
 {
     if (_cameras[0].inContinuousShot())
     {
