@@ -97,8 +97,6 @@ CameraArrayNode<TU::IIDCCameraArray>::add_parameters()
   // Add feature commands.
     for (const auto& featureName : camera_t::featureNames)
     {
-	using namespace	TU;
-	
 	const auto	feature	= featureName.feature;
 	const auto	name	= std::string(featureName.name);
 	const auto	inq	= camera.inquireFeatureFunction(feature);
@@ -141,7 +139,7 @@ CameraArrayNode<TU::IIDCCameraArray>::add_parameters()
 	    _ddr.registerVariable<int>(
 		"VR", vr,
 		boost::bind(&CameraArrayNode::set_feature_cb<int>,
-			    this, feature + IIDCCAMERA_OFFSET_VR, _1),
+			    this, feature + TU::IIDCCAMERA_OFFSET_VR, _1),
 		"White balance(V/R)", min, max, name);
 
 	    if (inq & camera_t::Abs_Control)
@@ -160,7 +158,7 @@ CameraArrayNode<TU::IIDCCameraArray>::add_parameters()
 		    "VR_Abs", vr,
 		    boost::bind(&CameraArrayNode::set_feature_cb<double>,
 				this,
-				feature + IIDCCAMERA_OFFSET_VR
+				feature + TU::IIDCCAMERA_OFFSET_VR
 					+ OFFSET_ABS_VAL,
 				_1),
 		    "Absolute white balance(V/R)", min, max, name);
@@ -196,7 +194,7 @@ CameraArrayNode<TU::IIDCCameraArray>::add_parameters()
 	    _ddr.registerVariable<bool>(
 		name + "_OnOff", camera.isActive(feature),
 		boost::bind(&CameraArrayNode::set_feature_cb<bool>, this,
-			    feature + IIDCCAMERA_OFFSET_ONOFF, _1),
+			    feature + TU::IIDCCAMERA_OFFSET_ONOFF, _1),
 		"Feature enabled", false, true, name);
 
 	if (inq & camera_t::Auto)
@@ -204,20 +202,20 @@ CameraArrayNode<TU::IIDCCameraArray>::add_parameters()
 		_ddr.registerVariable<bool>(
 		    name + "_Positive", camera.getTriggerPolarity(),
 		    boost::bind(&CameraArrayNode::set_feature_cb<bool>, this,
-				feature + IIDCCAMERA_OFFSET_AUTO, _1),
+				feature + TU::IIDCCAMERA_OFFSET_AUTO, _1),
 		    "Positive polarity", false, true, name);
 	    else
 		_ddr.registerVariable<bool>(
 		    name + "_Auto", camera.isAuto(feature),
 		    boost::bind(&CameraArrayNode::set_feature_cb<bool>, this,
-				feature + IIDCCAMERA_OFFSET_AUTO, _1),
+				feature + TU::IIDCCAMERA_OFFSET_AUTO, _1),
 		    "Automatically set", false, true, name);
 
 	if (inq & camera_t::Abs_Control)
 	    _ddr.registerVariable<bool>(
 		name + "_Abs", camera.isAbsControl(feature),
 		boost::bind(&CameraArrayNode::set_feature_cb<bool>, this,
-			    feature + IIDCCAMERA_OFFSET_ABS, _1),
+			    feature + TU::IIDCCAMERA_OFFSET_ABS, _1),
 		"In absolute values", false, true, name);
     }
 }
