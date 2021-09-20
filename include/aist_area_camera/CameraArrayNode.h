@@ -62,7 +62,6 @@ class CameraArrayNode
     bool	one_shot_cb(std_srvs::Trigger::Request&  req,
 			    std_srvs::Trigger::Response& res)		;
     void	continuous_shot_cb(bool enable)				;
-    void	select_camera_cb(int idx)				;
     template <class T>
     void	set_feature_cb(int feature, T val)			;
     void	publish()					const	;
@@ -81,7 +80,7 @@ class CameraArrayNode
   private:
     ros::NodeHandle					_nh;
     CAMERAS						_cameras;
-    size_t						_n;  // selected camera
+    int							_n;  // selected camera
     mutable std::vector<uint8_t>			_image;
     image_transport::ImageTransport			_it;
     std::vector<image_transport::CameraPublisher>	_pubs;
@@ -150,10 +149,7 @@ CameraArrayNode<CAMERAS>::CameraArrayNode(const ros::NodeHandle& nh)
 	for (size_t i = 0; i < _cameras.size(); ++i)
 	    enums.emplace("camera" + std::to_string(i), i);
 	enums.emplace("all", _cameras.size());
-	_ddr.registerEnumVariable<int>("select_camera", _n,
-				       boost::bind(
-					   &CameraArrayNode::select_camera_cb,
-					   this, _1),
+	_ddr.registerEnumVariable<int>("select_camera", &_n,
 				       "Select camera to be activated", enums,
 				       "", "camera_control");
     }
@@ -172,7 +168,7 @@ CameraArrayNode<CAMERAS>::CameraArrayNode(const ros::NodeHandle& nh)
 template <class CAMERAS> void
 CameraArrayNode<CAMERAS>::run()
 {
-    ros::Rate		looprate(_rate);
+    ros::Rate	looprate(_rate);
 
     while (ros::ok())
     {
@@ -220,12 +216,6 @@ CameraArrayNode<CAMERAS>::continuous_shot_cb(bool enable)
 {
     for (auto& camera : _cameras)
 	camera.continuousShot(enable);
-}
-
-template <class CAMERAS> void
-CameraArrayNode<CAMERAS>::select_camera_cb(int idx)
-{
-    _n = idx;
 }
 
 template <class CAMERAS> void
