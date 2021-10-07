@@ -11,7 +11,7 @@
   <group if="$(eval manager == '')">
     <node name="image_view"
 	  pkg = "image_view" type="image_view" output="screen">
-      <remap from="/image"	to="/$(arg camera_array_name)/camera0/image"/>
+      <remap from="/image"	to="$(arg camera_array_name)/camera0/image"/>
     </node>
   </group>
   
@@ -24,7 +24,7 @@
     <node name="image_view"
   	  pkg ="nodelet" type="nodelet"
   	  args="load image_view/image $(arg manager)">
-      <remap from="image"	to="/$(arg camera_array_name)/camera0/image"/>
+      <remap from="image"	to="$(arg camera_array_name)/camera0/image"/>
     </node>
   </group>
 

@@ -68,12 +68,13 @@ CameraArrayNode<TU::IIDCCameraArray>::add_parameters()
     const auto&	camera = _cameras[0];
 
   // Add format commands.
+    int	i = 0;
     for (const auto& formatName : camera_t::formatNames)
     {
 	const auto	inq = camera.inquireFrameRate(formatName.format);
 
 	std::map<std::string, int>	enums;
-	camera_t::FrameRate	frameRate;
+	camera_t::FrameRate		frameRate;
 	for (const auto& frameRateName : camera_t::frameRateNames)
 	    if (inq & frameRateName.frameRate)
 	    {
@@ -83,6 +84,8 @@ CameraArrayNode<TU::IIDCCameraArray>::add_parameters()
 
 	if (!enums.empty())
 	{
+	    std::cerr << "formatName: " << formatName.name << std::endl;
+	
 	    if (formatName.format == camera.getFormat())
 		frameRate = camera.getFrameRate();
 
@@ -91,12 +94,18 @@ CameraArrayNode<TU::IIDCCameraArray>::add_parameters()
 		boost::bind(&CameraArrayNode::set_feature_cb<int>,
 			    this, formatName.format, _1),
 		"Select frame rate", enums, "", formatName.name);
+
+	    for (const auto& en : enums)
+		std::cerr << ' ' << en.first;
+	    std::cerr << std::endl;
 	}
     }
-
+  /*
   // Add feature commands.
     for (const auto& featureName : camera_t::featureNames)
     {
+	std::cerr << "featureName: " << featureName.name << std::endl;
+	
 	const auto	feature	= featureName.feature;
 	const auto	name	= std::string(featureName.name);
 	const auto	inq	= camera.inquireFeatureFunction(feature);
@@ -116,11 +125,12 @@ CameraArrayNode<TU::IIDCCameraArray>::add_parameters()
 		    enums.emplace(triggerModeName.name,
 				  triggerModeName.triggerMode);
 
-	    _ddr.registerEnumVariable<int>(
-		"trigger_mode", camera.getTriggerMode(),
-		boost::bind(&CameraArrayNode::set_feature_cb<int>,
-			    this, feature, _1),
-		"Select trigger mode", enums, "", name);
+	    if (!enums.empty())
+		_ddr.registerEnumVariable<int>(
+		    "trigger_mode", camera.getTriggerMode(),
+		    boost::bind(&CameraArrayNode::set_feature_cb<int>,
+				this, feature, _1),
+		    "Select trigger mode", enums, "", name);
 	  }
 	    break;
 
@@ -218,6 +228,7 @@ CameraArrayNode<TU::IIDCCameraArray>::add_parameters()
 			    feature + TU::IIDCCAMERA_OFFSET_ABS, _1),
 		"In absolute values", false, true, name);
     }
+  */
 }
 
 template <> template <class T> void
