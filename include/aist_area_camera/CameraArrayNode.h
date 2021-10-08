@@ -106,6 +106,9 @@ CameraArrayNode<CAMERAS>::CameraArrayNode(const ros::NodeHandle& nh)
   // Restore camera configurations and create cameras.
     const auto	camera_name = _nh.param<std::string>(
 				"camera_name", CAMERAS::DEFAULT_CAMERA_NAME);
+    ROS_INFO_STREAM("Set the name of camera array to \""
+		    << camera_name << '\"') ;
+
     _cameras.setName(camera_name.c_str()).restore();
     if (_cameras.size() == 0)
 	throw std::runtime_error("No cameras found.");
@@ -158,7 +161,7 @@ CameraArrayNode<CAMERAS>::CameraArrayNode(const ros::NodeHandle& nh)
 
   // Embed timestamp in images. (only for PointGrey's IIDC cameras)
     embed_timestamp(true);
-    
+
   // Start cameras.
     ros::Duration(0.5).sleep();
     for (auto& camera : _cameras)
@@ -366,7 +369,14 @@ CameraArrayNodelet<CAMERAS>::onInit()
     NODELET_INFO("CameraArrayNodelet<CAMERAS>::onInit()");
 
     const auto	nh = getPrivateNodeHandle();
-    _node.reset(new CameraArrayNode<CAMERAS>(nh));
+    try
+    {
+	_node.reset(new CameraArrayNode<CAMERAS>(nh));
+    }
+    catch (const std::exception& err)
+    {
+	NODELET_ERROR(err.what());
+    }
     _timer = nh.createTimer(ros::Duration(1.0/_node->rate()),
 			    &CameraArrayNodelet::timer_cb, this);
 

@@ -1,7 +1,8 @@
 <launch>
 
   <arg name="camera_type"	default="v4l2"/>
-  <arg name="camera_array_name"	default="$(arg camera_type)_cameras"/>
+  <arg name="camera_name"	default="$(eval 'V4L2Camera' if camera_type ==
+					 'v4l2' else 'IIDCCamera')"/>
   <arg name="max_skew"		default="0"/>
   <arg name="convert_to_rgb"	default="false"/>
   <arg name="rate"		default="100"/>
@@ -11,11 +12,11 @@
   <group if="$(eval manager == '')">
     <node name="image_view0"
 	  pkg = "image_view" type="image_view" output="screen">
-      <remap from="/image"	to="/$(arg camera_array_name)/camera0/image"/>
+      <remap from="/image"	to="/$(arg camera_name)/camera0/image"/>
     </node>
     <node name="image_view1"
 	  pkg = "image_view" type="image_view" output="screen">
-      <remap from="/image"	to="/$(arg camera_array_name)/camera1/image"/>
+      <remap from="/image"	to="/$(arg camera_name)/camera1/image"/>
     </node>
   </group>
   
@@ -28,18 +29,18 @@
     <node name="image_view0"
   	  pkg ="nodelet" type="nodelet"
   	  args="load image_view/image $(arg manager)">
-      <remap from="image"	to="/$(arg camera_array_name)/camera0/image"/>
+      <remap from="image"	to="/$(arg camera_name)/camera0/image"/>
     </node>
     <node name="image_view1"
   	  pkg ="nodelet" type="nodelet"
   	  args="load image_view/image $(arg manager)">
-      <remap from="image"	to="/$(arg camera_array_name)/camera1/image"/>
+      <remap from="image"	to="/$(arg camera_name)/camera1/image"/>
     </node>
   </group>
 
   <include file="$(dirname)/run.launch">
     <arg name="camera_type"		value="$(arg camera_type)"/>
-    <arg name="camera_array_name"	value="$(arg camera_array_name)"/>
+    <arg name="camera_name"		value="$(arg camera_name)"/>
     <arg name="max_skew"		value="$(arg max_skew)"/>
     <arg name="convert_to_rgb"		value="$(arg convert_to_rgb)"/>
     <arg name="rate"			value="$(arg rate)"/>

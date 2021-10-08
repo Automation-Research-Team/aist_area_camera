@@ -22,12 +22,7 @@ main(int argc, char** argv)
     }
     catch (const std::exception& err)
     {
-	ROS_ERROR_STREAM(err.what());
-        return 1;
-    }
-    catch (...)
-    {
-	ROS_ERROR_STREAM("Unknown error.");
+	std::cerr << "*** " << err.what() << std::endl;
         return 1;
     }
 

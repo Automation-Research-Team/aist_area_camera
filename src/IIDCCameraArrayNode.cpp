@@ -16,19 +16,19 @@ set_feature(TU::IIDCCamera& camera, int feature, int val)
 {
     u_int	uval;
     float	fval;
-    TU::getFeature(camera, feature - OFFSET_ABS_VAL, uval, fval);
-    TU::setFeature(camera, feature - OFFSET_ABS_VAL, val,  fval);
+    TU::getFeature(camera, feature, uval, fval);
+    TU::setFeature(camera, feature, val,  fval);
 }
-    
+
 static void
 set_feature(TU::IIDCCamera& camera, int feature, double val)
 {
     u_int	uval;
     float	fval;
-    TU::getFeature(camera, feature, uval, fval);
-    TU::setFeature(camera, feature, uval, val);
+    TU::getFeature(camera, feature - OFFSET_ABS_VAL, uval, fval);
+    TU::setFeature(camera, feature - OFFSET_ABS_VAL, uval, val);
 }
-    
+
 /************************************************************************
 *  class CameraArrayNode<TU::IIDCCameraArray>				*
 ************************************************************************/
@@ -61,14 +61,13 @@ CameraArrayNode<TU::IIDCCameraArray>::embed_timestamp(bool enable)
     for (auto& camera : _cameras)
 	camera.embedTimestamp(enable);
 }
-    
+
 template <> void
 CameraArrayNode<TU::IIDCCameraArray>::add_parameters()
 {
     const auto&	camera = _cameras[0];
 
   // Add format commands.
-    int	i = 0;
     for (const auto& formatName : camera_t::formatNames)
     {
 	const auto	inq = camera.inquireFrameRate(formatName.format);
@@ -84,8 +83,6 @@ CameraArrayNode<TU::IIDCCameraArray>::add_parameters()
 
 	if (!enums.empty())
 	{
-	    std::cerr << "formatName: " << formatName.name << std::endl;
-	
 	    if (formatName.format == camera.getFormat())
 		frameRate = camera.getFrameRate();
 
@@ -94,18 +91,12 @@ CameraArrayNode<TU::IIDCCameraArray>::add_parameters()
 		boost::bind(&CameraArrayNode::set_feature_cb<int>,
 			    this, formatName.format, _1),
 		"Select frame rate", enums, "", formatName.name);
-
-	    for (const auto& en : enums)
-		std::cerr << ' ' << en.first;
-	    std::cerr << std::endl;
 	}
     }
-    
+
   // Add feature commands.
     for (const auto& featureName : camera_t::featureNames)
     {
-	std::cerr << "featureName: " << featureName.name << std::endl;
-	
 	const auto	feature	= featureName.feature;
 	const auto	name	= std::string(featureName.name);
 	const auto	inq	= camera.inquireFeatureFunction(feature);
@@ -127,10 +118,10 @@ CameraArrayNode<TU::IIDCCameraArray>::add_parameters()
 
 	    if (!enums.empty())
 		_ddr.registerEnumVariable<int>(
-		    "trigger_mode", camera.getTriggerMode(),
+		    name, camera.getTriggerMode(),
 		    boost::bind(&CameraArrayNode::set_feature_cb<int>,
 				this, feature, _1),
-		    "Select trigger mode", enums, "", name);
+		    "Trigger mode selection", enums, "", name);
 	  }
 	    break;
 
@@ -160,18 +151,20 @@ CameraArrayNode<TU::IIDCCameraArray>::add_parameters()
 		camera.getWhiteBalance(ub, vr);
 
 		_ddr.registerVariable<double>(
-		    "UB_Abs", ub,
+		    "UB_abs", ub,
 		    boost::bind(&CameraArrayNode::set_feature_cb<double>,
 				this, feature + OFFSET_ABS_VAL, _1),
-		    "Absolute white balance(U/V)", min, max, name);
+		    "White balance(U/V) in absolute values",
+		    min, max, name);
 		_ddr.registerVariable<double>(
-		    "VR_Abs", vr,
+		    "VR_abs", vr,
 		    boost::bind(&CameraArrayNode::set_feature_cb<double>,
 				this,
 				feature + TU::IIDCCAMERA_OFFSET_VR
 					+ OFFSET_ABS_VAL,
 				_1),
-		    "Absolute white balance(V/R)", min, max, name);
+		    "White balance(V/R) in absolute values",
+		    min, max, name);
 	    }
 	  }
 	    break;
@@ -184,7 +177,7 @@ CameraArrayNode<TU::IIDCCameraArray>::add_parameters()
 		name + "_val", camera.getValue(feature),
 		boost::bind(&CameraArrayNode::set_feature_cb<int>,
 			    this, feature, _1),
-		"value", min, max, name);
+		"Feature values", min, max, name);
 
 	    if (inq & camera_t::Abs_Control)
 	    {
@@ -194,7 +187,7 @@ CameraArrayNode<TU::IIDCCameraArray>::add_parameters()
 		    name + "_abs_val", camera.getValue<float>(feature),
 		    boost::bind(&CameraArrayNode::set_feature_cb<double>,
 				this, feature + OFFSET_ABS_VAL, _1),
-		    "absolute value", min, max, name);
+		    "Absolute feature values", min, max, name);
 	    }
 	  }
 	    break;
@@ -205,7 +198,7 @@ CameraArrayNode<TU::IIDCCameraArray>::add_parameters()
 		name + "_is_active", camera.isActive(feature),
 		boost::bind(&CameraArrayNode::set_feature_cb<bool>, this,
 			    feature + TU::IIDCCAMERA_OFFSET_ONOFF, _1),
-		"Feature enabled", false, true, name);
+		"Feature activity", false, true, name);
 
 	if (inq & camera_t::Auto)
 	    if (feature == camera_t::TRIGGER_MODE)
@@ -219,17 +212,15 @@ CameraArrayNode<TU::IIDCCameraArray>::add_parameters()
 		    name + "_is_auto", camera.isAuto(feature),
 		    boost::bind(&CameraArrayNode::set_feature_cb<bool>, this,
 				feature + TU::IIDCCAMERA_OFFSET_AUTO, _1),
-		    "Automatically set", false, true, name);
+		    "Feature values set automatically", false, true, name);
 
 	if (inq & camera_t::Abs_Control)
 	    _ddr.registerVariable<bool>(
 		name + "_is_abs", camera.isAbsControl(feature),
 		boost::bind(&CameraArrayNode::set_feature_cb<bool>, this,
 			    feature + TU::IIDCCAMERA_OFFSET_ABS, _1),
-		"In absolute values", false, true, name);
+		"Feature in absolute values", false, true, name);
     }
-
-    std::cerr << "add_parameters(): completed." << std::endl;
 }
 
 template <> template <class T> void
@@ -260,7 +251,7 @@ CameraArrayNode<TU::IIDCCameraArray>::publish(
     const image_transport::CameraPublisher& pub) const
 {
     using namespace	sensor_msgs;
-    
+
     switch (camera.pixelFormat())
     {
       case camera_t::MONO_8:
