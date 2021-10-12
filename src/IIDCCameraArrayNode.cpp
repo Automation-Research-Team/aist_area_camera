@@ -91,10 +91,10 @@ CameraArrayNode<TU::IIDCCameraArray>::add_parameters()
 		frameRate = camera.getFrameRate();
 
 	    _ddr.registerEnumVariable<int>(
-		"frame_rate" + std::to_string(n++), frameRate,
+		std::string(formatName.name) + "/frame_rate", frameRate,
 		boost::bind(&CameraArrayNode::set_feature_cb<int>,
 			    this, formatName.format, _1),
-		"Select frame rate", enums, "", formatName.name);
+		"Select frame rate", enums);
 	}
     }
 
@@ -123,7 +123,7 @@ CameraArrayNode<TU::IIDCCameraArray>::add_parameters()
 
 	    if (!enums.empty())
 		_ddr.registerEnumVariable<int>(
-		    "trigger_mode", camera.getTriggerMode(),
+		    name + "/value", camera.getTriggerMode(),
 		    boost::bind(&CameraArrayNode::set_feature_cb<int>,
 				this, feature, _1),
 		    "Trigger mode selection", enums, "", name);
@@ -138,12 +138,12 @@ CameraArrayNode<TU::IIDCCameraArray>::add_parameters()
 	    camera.getWhiteBalance(ub, vr);
 
 	    _ddr.registerVariable<int>(
-		"UB", ub,
+		name + "/UB", ub,
 		boost::bind(&CameraArrayNode::set_feature_cb<int>,
 			    this, feature, _1),
 		"White balance(U/V)", min, max, name);
 	    _ddr.registerVariable<int>(
-		"VR", vr,
+		name + "/VR", vr,
 		boost::bind(&CameraArrayNode::set_feature_cb<int>,
 			    this, feature + TU::IIDCCAMERA_OFFSET_VR, _1),
 		"White balance(V/R)", min, max, name);
@@ -156,13 +156,13 @@ CameraArrayNode<TU::IIDCCameraArray>::add_parameters()
 		camera.getWhiteBalance(ub, vr);
 
 		_ddr.registerVariable<double>(
-		    "UB_abs", ub,
+		    name + "/UB_abs", ub,
 		    boost::bind(&CameraArrayNode::set_feature_cb<double>,
 				this, feature + OFFSET_ABS_VAL, _1),
 		    "White balance(U/V) in absolute values",
 		    min, max, name);
 		_ddr.registerVariable<double>(
-		    "VR_abs", vr,
+		    name + "/VR_abs", vr,
 		    boost::bind(&CameraArrayNode::set_feature_cb<double>,
 				this,
 				feature + TU::IIDCCAMERA_OFFSET_VR
@@ -179,7 +179,7 @@ CameraArrayNode<TU::IIDCCameraArray>::add_parameters()
 	    u_int	min, max;
 	    camera.getMinMax(feature, min, max);
 	    _ddr.registerVariable<int>(
-		name + "_val", camera.getValue(feature),
+		name + "/value", camera.getValue(feature),
 		boost::bind(&CameraArrayNode::set_feature_cb<int>,
 			    this, feature, _1),
 		"Feature values", min, max, name);
@@ -189,7 +189,7 @@ CameraArrayNode<TU::IIDCCameraArray>::add_parameters()
 		float	min, max;
 		camera.getMinMax(feature, min, max);
 		_ddr.registerVariable<double>(
-		    name + "_abs_val", camera.getValue<float>(feature),
+		    name + "/abs_value", camera.getValue<float>(feature),
 		    boost::bind(&CameraArrayNode::set_feature_cb<double>,
 				this, feature + OFFSET_ABS_VAL, _1),
 		    "Absolute feature values", min, max, name);
@@ -200,7 +200,7 @@ CameraArrayNode<TU::IIDCCameraArray>::add_parameters()
 
 	if (inq & camera_t::OnOff)
 	    _ddr.registerVariable<bool>(
-		name + "_is_active", camera.isActive(feature),
+		name + "/active", camera.isActive(feature),
 		boost::bind(&CameraArrayNode::set_feature_cb<bool>, this,
 			    feature + TU::IIDCCAMERA_OFFSET_ONOFF, _1),
 		"Feature activity", false, true, name);
@@ -208,20 +208,20 @@ CameraArrayNode<TU::IIDCCameraArray>::add_parameters()
 	if (inq & camera_t::Auto)
 	    if (feature == camera_t::TRIGGER_MODE)
 		_ddr.registerVariable<bool>(
-		    name + "_is_positive", camera.getTriggerPolarity(),
+		    name + "/polarity", camera.getTriggerPolarity(),
 		    boost::bind(&CameraArrayNode::set_feature_cb<bool>, this,
 				feature + TU::IIDCCAMERA_OFFSET_AUTO, _1),
 		    "Positive polarity", false, true, name);
 	    else
 		_ddr.registerVariable<bool>(
-		    name + "_is_auto", camera.isAuto(feature),
+		    name + "/auto", camera.isAuto(feature),
 		    boost::bind(&CameraArrayNode::set_feature_cb<bool>, this,
 				feature + TU::IIDCCAMERA_OFFSET_AUTO, _1),
 		    "Feature values set automatically", false, true, name);
 
 	if (inq & camera_t::Abs_Control)
 	    _ddr.registerVariable<bool>(
-		name + "_is_abs", camera.isAbsControl(feature),
+		name + "/abs", camera.isAbsControl(feature),
 		boost::bind(&CameraArrayNode::set_feature_cb<bool>, this,
 			    feature + TU::IIDCCAMERA_OFFSET_ABS, _1),
 		"Feature in absolute values", false, true, name);

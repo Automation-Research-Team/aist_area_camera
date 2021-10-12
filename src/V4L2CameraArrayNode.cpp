@@ -37,11 +37,10 @@ CameraArrayNode<TU::V4L2CameraArray>::add_parameters()
         }
 
         _ddr.registerEnumVariable<int>(
-	    "frame_size", current,
+	    camera_t::getShortName(pixelFormat) + "/frame_size", current,
 	    boost::bind(&CameraArrayNode::set_feature_cb<int>,
 			this, pixelFormat, _1),
-	    "Select frame size", enums, "",
-	    camera_t::getShortName(pixelFormat));
+	    "Select frame size", enums);
     }
 
   // Add feature commands.
