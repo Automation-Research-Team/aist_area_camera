@@ -68,9 +68,13 @@ CameraArrayNode<TU::IIDCCameraArray>::add_parameters()
     const auto&	camera = _cameras[0];
 
   // Add format commands.
+    int	n = 0;
     for (const auto& formatName : camera_t::formatNames)
     {
 	const auto	inq = camera.inquireFrameRate(formatName.format);
+
+	// if (formatName.format >= camera_t::Format_7_0)
+	//     continue;
 
 	std::map<std::string, int>	enums;
 	camera_t::FrameRate		frameRate;
@@ -87,7 +91,7 @@ CameraArrayNode<TU::IIDCCameraArray>::add_parameters()
 		frameRate = camera.getFrameRate();
 
 	    _ddr.registerEnumVariable<int>(
-		"frame_rate", frameRate,
+		"frame_rate" + std::to_string(n++), frameRate,
 		boost::bind(&CameraArrayNode::set_feature_cb<int>,
 			    this, formatName.format, _1),
 		"Select frame rate", enums, "", formatName.name);
@@ -108,6 +112,7 @@ CameraArrayNode<TU::IIDCCameraArray>::add_parameters()
 
 	switch (feature)
 	{
+
 	  case camera_t::TRIGGER_MODE:
 	  {
 	    std::map<std::string, int>	enums;
@@ -118,7 +123,7 @@ CameraArrayNode<TU::IIDCCameraArray>::add_parameters()
 
 	    if (!enums.empty())
 		_ddr.registerEnumVariable<int>(
-		    name, camera.getTriggerMode(),
+		    "trigger_mode", camera.getTriggerMode(),
 		    boost::bind(&CameraArrayNode::set_feature_cb<int>,
 				this, feature, _1),
 		    "Trigger mode selection", enums, "", name);
