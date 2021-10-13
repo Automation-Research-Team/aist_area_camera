@@ -138,12 +138,12 @@ CameraArrayNode<TU::IIDCCameraArray>::add_parameters()
 	    camera.getWhiteBalance(ub, vr);
 
 	    _ddr.registerVariable<int>(
-		name + "/UB", ub,
+		name + "/ub", ub,
 		boost::bind(&CameraArrayNode::set_feature_cb<int>,
 			    this, feature, _1),
 		"White balance(U/V)", min, max, name);
 	    _ddr.registerVariable<int>(
-		name + "/VR", vr,
+		name + "/vr", vr,
 		boost::bind(&CameraArrayNode::set_feature_cb<int>,
 			    this, feature + TU::IIDCCAMERA_OFFSET_VR, _1),
 		"White balance(V/R)", min, max, name);
@@ -156,13 +156,13 @@ CameraArrayNode<TU::IIDCCameraArray>::add_parameters()
 		camera.getWhiteBalance(ub, vr);
 
 		_ddr.registerVariable<double>(
-		    name + "/UB_abs", ub,
+		    name + "/ub_abs", ub,
 		    boost::bind(&CameraArrayNode::set_feature_cb<double>,
 				this, feature + OFFSET_ABS_VAL, _1),
 		    "White balance(U/V) in absolute values",
 		    min, max, name);
 		_ddr.registerVariable<double>(
-		    name + "/VR_abs", vr,
+		    name + "/vr_abs", vr,
 		    boost::bind(&CameraArrayNode::set_feature_cb<double>,
 				this,
 				feature + TU::IIDCCAMERA_OFFSET_VR
