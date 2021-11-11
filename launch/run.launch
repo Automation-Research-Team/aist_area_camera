@@ -7,7 +7,6 @@
   <arg name="convert_to_rgb"	default="false"/>
   <arg name="rate"		default="100"/>
   <arg name="manager"		default=""/>
-  <arg name="manager_threads"	default="4"/>
 
   <node if="$(eval manager == '')"
 	name="$(arg camera_name)" pkg="aist_area_camera"

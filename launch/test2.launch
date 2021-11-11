@@ -19,7 +19,7 @@
       <remap from="/image"	to="/$(arg camera_name)/camera1/image"/>
     </node>
   </group>
-  
+
   <group unless="$(eval manager == '')">
     <node name="$(arg manager)"
 	  pkg ="nodelet" type="nodelet" args="manager" output="screen">
@@ -45,7 +45,6 @@
     <arg name="convert_to_rgb"		value="$(arg convert_to_rgb)"/>
     <arg name="rate"			value="$(arg rate)"/>
     <arg name="manager"			value="$(arg manager)"/>
-    <arg name="manager_threads"		value="$(arg manager_threads)4"/>
   </include>
 
   <node name="rqt_reconfigure" pkg="rqt_reconfigure" type="rqt_reconfigure"/>

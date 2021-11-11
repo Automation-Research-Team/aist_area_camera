@@ -36,7 +36,6 @@
     <arg name="convert_to_rgb"		value="$(arg convert_to_rgb)"/>
     <arg name="rate"			value="$(arg rate)"/>
     <arg name="manager"			value="$(arg manager)"/>
-    <arg name="manager_threads"		value="$(arg manager_threads)"/>
   </include>
 
   <node name="rqt_reconfigure" pkg="rqt_reconfigure" type="rqt_reconfigure"/>
