@@ -52,8 +52,8 @@ target_link_libraries(
   debug ${catkin_LIBRARIES}
   optimized ${catkin_LIBRARIES}
   ${Boost_LIBRARIES}
-  ${TUV4L2PP_LIB}
-  ${TUTOOLSPP_LIB}
+  ${TUV4L2_LIB}
+  ${TUTOOLS_LIB}
 )
 
 add_library(
@@ -73,8 +73,8 @@ target_link_libraries(
   debug ${catkin_LIBRARIES}
   optimized ${catkin_LIBRARIES}
   ${Boost_LIBRARIES}
-  ${TUV4L2PP_LIB}
-  ${TUTOOLSPP_LIB}
+  ${TUV4L2_LIB}
+  ${TUTOOLS_LIB}
 )
 
 add_executable(
@@ -94,8 +94,8 @@ target_link_libraries(
   debug ${catkin_LIBRARIES}
   optimized ${catkin_LIBRARIES}
   ${Boost_LIBRARIES}
-  ${TUIIDCPP_LIB}
-  ${TUTOOLSPP_LIB}
+  ${TUIIDC_LIB}
+  ${TUTOOLS_LIB}
 )
 
 add_library(
@@ -115,8 +115,8 @@ target_link_libraries(
   debug ${catkin_LIBRARIES}
   optimized ${catkin_LIBRARIES}
   ${Boost_LIBRARIES}
-  ${TUIIDCPP_LIB}
-  ${TUTOOLSPP_LIB}
+  ${TUIIDC_LIB}
+  ${TUTOOLS_LIB}
 )
 
 install(
