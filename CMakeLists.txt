@@ -35,7 +35,7 @@ add_compile_options(-fpermissive)
 add_compile_options(-pthread)
 add_compile_options(-O2)
 
-add_executable(
+add_library(
   v4l2_camera
   src/v4l2_camera.cpp
   src/V4L2CameraArrayNode.cpp
@@ -57,27 +57,6 @@ target_link_libraries(
 )
 
 add_library(
-  v4l2_camera_nodelet
-  src/v4l2_nodelet.cpp
-  src/V4L2CameraArrayNode.cpp
-)
-
-add_dependencies(
-  v4l2_camera_nodelet
-  ${${PROJECT_NAME}_EXPORTED_TARGETS}
-  ${catkin_EXPORTED_TARGETS}
-)
-
-target_link_libraries(
-  v4l2_camera_nodelet
-  debug ${catkin_LIBRARIES}
-  optimized ${catkin_LIBRARIES}
-  ${Boost_LIBRARIES}
-  ${TUV4L2_LIB}
-  ${TUTOOLS_LIB}
-)
-
-add_executable(
   iidc_camera
   src/iidc_camera.cpp
   src/IIDCCameraArrayNode.cpp
@@ -98,30 +77,9 @@ target_link_libraries(
   ${TUTOOLS_LIB}
 )
 
-add_library(
-  iidc_camera_nodelet
-  src/iidc_nodelet.cpp
-  src/IIDCCameraArrayNode.cpp
-)
-
-add_dependencies(
-  iidc_camera_nodelet
-  ${${PROJECT_NAME}_EXPORTED_TARGETS}
-  ${catkin_EXPORTED_TARGETS}
-)
-
-target_link_libraries(
-  iidc_camera_nodelet
-  debug ${catkin_LIBRARIES}
-  optimized ${catkin_LIBRARIES}
-  ${Boost_LIBRARIES}
-  ${TUIIDC_LIB}
-  ${TUTOOLS_LIB}
-)
-
 install(
   TARGETS
-    v4l2_camera v4l2_camera_nodelet iidc_camera iidc_camera_nodelet
+    v4l2_camera iidc_camera
   ARCHIVE
     DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY

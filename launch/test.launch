@@ -23,7 +23,7 @@
     </node>
 
     <node name="image_view"
-  	  pkg ="nodelet" type="nodelet"
+  	  pkg ="nodelet" type="nodelet" output="screen"
   	  args="load image_view/image $(arg manager)">
       <remap from="image"	to="$(arg camera_name)/camera0/image"/>
     </node>

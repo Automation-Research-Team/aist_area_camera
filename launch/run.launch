@@ -8,18 +8,12 @@
   <arg name="rate"		default="100"/>
   <arg name="manager"		default=""/>
 
-  <node if="$(eval manager == '')"
-	name="$(arg camera_name)" pkg="aist_area_camera"
-	type="$(arg camera_type)_camera" output="screen">
-    <param name="camera_name"		value="$(arg camera_name)"/>
-    <param name="max_skew"		value="$(arg max_skew)"/>
-    <param name="convert_to_rgb"	value="$(arg convert_to_rgb)"/>
-    <param name="rate"			value="$(arg rate)"/>
-  </node>
+  <arg if="$(eval manager == '')"	name="command"	value="standalone"/>
+  <arg unless="$(eval manager == '')"	name="command"	value="load"/>
 
-  <node unless="$(eval manager == '')"
-	name="$(arg camera_name)" pkg ="nodelet" type="nodelet"
-  	args="load aist_area_camera/$(arg camera_type)_camera_nodelet
+  <node name="$(arg camera_name)"
+	pkg = "nodelet" type="nodelet" output="screen"
+	args="$(arg command) aist_area_camera/$(arg camera_type)_camera
 	      $(arg manager)">
     <param name="camera_name"		value="$(arg camera_name)"/>
     <param name="max_skew"		value="$(arg max_skew)"/>

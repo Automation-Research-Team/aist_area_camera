@@ -52,7 +52,6 @@ class CameraArrayNode
   public:
 		CameraArrayNode(const ros::NodeHandle& nh)		;
 
-    void	run()							;
     void	tick()							;
     double	rate()						const	;
 
@@ -156,6 +155,7 @@ CameraArrayNode<CAMERAS>::CameraArrayNode(const ros::NodeHandle& nh)
     }
     add_parameters();
     _ddr.publishServicesTopics();
+    std::cerr << _ddr.getConfigYAML() << std::endl;
 
   // Embed timestamp in images. (only for PointGrey's IIDC cameras)
     embed_timestamp(true);
@@ -164,19 +164,6 @@ CameraArrayNode<CAMERAS>::CameraArrayNode(const ros::NodeHandle& nh)
     ros::Duration(0.5).sleep();
     for (auto& camera : _cameras)
 	camera.continuousShot(true);
-}
-
-template <class CAMERAS> void
-CameraArrayNode<CAMERAS>::run()
-{
-    ros::Rate	looprate(_rate);
-
-    while (ros::ok())
-    {
-	tick();
-	ros::spinOnce();
-	looprate.sleep();
-    }
 }
 
 template <class CAMERAS> void
