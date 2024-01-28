@@ -24,9 +24,7 @@ CameraArrayNode<TU::V4L2CameraArray>::add_parameters()
         BOOST_FOREACH (const auto& frameSize,
                        camera.availableFrameSizes(pixelFormat))
         {
-	    std::ostringstream	s;
-	    s << frameSize;
-	    enums.emplace(s.str(), idx);
+	    enums.emplace(frameSize.getName(), idx);
 	    
 	    if (camera.pixelFormat() == pixelFormat      &&
 		frameSize.width.involves(camera.width()) &&
