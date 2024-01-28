@@ -46,7 +46,7 @@ CameraArrayNode<TU::V4L2CameraArray>::add_parameters()
   // Add feature commands.
     BOOST_FOREACH (auto feature, camera.availableFeatures())
     {
-	const auto	name = camera_t::getShortName(feature);
+	const auto	name	  = camera.getShortName(feature);
 	const auto	menuItems = camera.availableMenuItems(feature);
 	
 	if (menuItems.first == menuItems.second)
