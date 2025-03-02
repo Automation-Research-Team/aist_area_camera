@@ -6,6 +6,7 @@
   <arg name="max_skew"		default="0"/>
   <arg name="convert_to_rgb"	default="false"/>
   <arg name="rate"		default="100"/>
+  <arg name="external_manager"	default="false"/>
   <arg name="manager"		default=""/>
   <arg name="manager_threads"	default="4"/>
   <arg name="vis"		default="false"/>
@@ -13,8 +14,9 @@
   <arg if="$(eval manager == '')"	name="command"	value="standalone"/>
   <arg unless="$(eval manager == '')"	name="command"	value="load"/>
 
-  <node name="$(arg manager)"
-	pkg ="nodelet" type="nodelet" args="manager" output="screen">
+  <node unless="$(arg external_manager)"
+	name="$(arg manager)" pkg ="nodelet" type="nodelet"
+	args="manager" output="screen">
     <param name="num_worker_threads"	value="$(arg manager_threads)"/>
   </node>
 
